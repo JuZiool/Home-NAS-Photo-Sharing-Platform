@@ -1,0 +1,29 @@
+# 照片存储目录
+Photos/
+TheDeletePhotos/
+
+# Docker 相关
+.dockerignore
+*.log
+
+# IDE 相关
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 操作系统相关
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.tmp
+*.temp
+
+# 依赖目录
+node_modules/
+vendor/
+
+# 构建输出
+dist/
+build/
