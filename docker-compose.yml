@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # 前端服务
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: photo_sharing_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - photo_network
+
+  # 后端服务（Nginx + PHP-FPM）
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: photo_sharing_backend
+    ports:
+      - "8000:80"
+    depends_on:
+      - mysql
+    volumes:
+      - ./backend:/var/www/html
+      - ./backend/nginx/conf.d:/etc/nginx/conf.d
+      - ./Photos:/var/www/html/Photos
+      - ./TheDeletePhotos:/var/www/html/TheDeletePhotos
+    networks:
+      - photo_network
+
+  # MySQL数据库服务
+  mysql:
+    image: mysql:8.0
+    container_name: photo_sharing_mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: photodb
+      MYSQL_USER: photouser
+      MYSQL_PASSWORD: photopassword
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/mysql/init:/docker-entrypoint-initdb.d
+    networks:
+      - photo_network
+
+  # Redis缓存服务（可选）
+  redis:
+    image: redis:7.0
+    container_name: photo_sharing_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - photo_network
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  photo_network:
+    driver: bridge
