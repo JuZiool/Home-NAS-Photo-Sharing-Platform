@@ -17,13 +17,14 @@
           >
         </div>
         <div class="form-group">
-          <input 
-            type="password" 
-            placeholder="密码 (建议: 123456)" 
-            class="input-field"
-            v-model="password"
-          >
-        </div>
+        <input 
+          type="password" 
+          placeholder="密码 (建议: 123456)" 
+          class="input-field"
+          v-model="password"
+          autocomplete="current-password"
+        >
+      </div>
         <div class="form-options">
           <label class="remember-me">
             <input type="checkbox" v-model="remember">

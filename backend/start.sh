@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # 启动PHP-FPM
-php-fpm84 -D
+php-fpm -D
 
 # 启动Nginx
 nginx -g "daemon off;"

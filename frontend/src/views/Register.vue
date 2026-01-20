@@ -25,21 +25,23 @@
           >
         </div>
         <div class="form-group">
-          <input 
-            type="password" 
-            placeholder="密码" 
-            class="input-field"
-            v-model="password"
-          >
-        </div>
-        <div class="form-group">
-          <input 
-            type="password" 
-            placeholder="确认密码" 
-            class="input-field"
-            v-model="confirmPassword"
-          >
-        </div>
+        <input 
+          type="password" 
+          placeholder="密码" 
+          class="input-field"
+          v-model="password"
+          autocomplete="new-password"
+        >
+      </div>
+      <div class="form-group">
+        <input 
+          type="password" 
+          placeholder="确认密码" 
+          class="input-field"
+          v-model="confirmPassword"
+          autocomplete="new-password"
+        >
+      </div>
         
         <div v-if="error" class="error-message">
           {{ error }}
