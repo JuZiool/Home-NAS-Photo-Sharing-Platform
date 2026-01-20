@@ -101,6 +101,9 @@ function extractPhotoTakenDate($filePath) {
     return null;
 }
 
+// 解析JSON请求体
+$requestBody = json_decode(file_get_contents('php://input'), true);
+
 // API路由处理
 $path = $_SERVER['REQUEST_URI'];
 $method = $_SERVER['REQUEST_METHOD'];
@@ -121,9 +124,6 @@ if ($path === '/' || $path === '/index.php') {
     ]);
     exit;
 }
-
-// 解析JSON请求体
-$requestBody = json_decode(file_get_contents('php://input'), true);
 
 // 认证相关路由
 if (strpos($path, '/api/auth') === 0) {
