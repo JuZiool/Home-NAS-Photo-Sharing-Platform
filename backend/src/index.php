@@ -101,8 +101,18 @@ function extractPhotoTakenDate($filePath) {
     return null;
 }
 
-// 解析JSON请求体
-$requestBody = json_decode(file_get_contents('php://input'), true);
+// 解析请求体，支持JSON和表单格式
+$requestBody = [];
+if ($_SERVER['REQUEST_METHOD'] === 'POST' || $_SERVER['REQUEST_METHOD'] === 'PUT') {
+    $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+    if (strpos($contentType, 'application/json') !== false) {
+        // JSON格式请求
+        $requestBody = json_decode(file_get_contents('php://input'), true) ?? [];
+    } else {
+        // 表单格式请求
+        $requestBody = $_POST ?? [];
+    }
+}
 
 // API路由处理
 $path = $_SERVER['REQUEST_URI'];

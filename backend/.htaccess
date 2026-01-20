@@ -1,4 +1,4 @@
 RewriteEngine On
 
 RewriteCond %{REQUEST_FILENAME} !-f
-RewriteRule ^api/(.*)$ api/index.php [L,QSA]
+RewriteRule ^api/(.*)$ src/index.php [L,QSA]
