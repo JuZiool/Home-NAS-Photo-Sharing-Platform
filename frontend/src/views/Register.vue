@@ -1,58 +1,60 @@
 <template>
   <div class="register-container">
     <div class="register-form">
-      <div class="logo">
-        <div class="logo-icon">
-          <span>📸</span>
+      <form @submit.prevent="register">
+        <div class="logo">
+          <div class="logo-icon">
+            <span>📸</span>
+          </div>
+          <div class="logo-text">PhotoShare</div>
         </div>
-        <div class="logo-text">PhotoShare</div>
-      </div>
-      <div class="form-group">
-        <input 
-          type="text" 
-          placeholder="用户名" 
-          class="input-field"
-          v-model="username"
-        >
-      </div>
-      <div class="form-group">
-        <input 
-          type="email" 
-          placeholder="邮箱" 
-          class="input-field"
-          v-model="email"
-        >
-      </div>
-      <div class="form-group">
-        <input 
-          type="password" 
-          placeholder="密码" 
-          class="input-field"
-          v-model="password"
-        >
-      </div>
-      <div class="form-group">
-        <input 
-          type="password" 
-          placeholder="确认密码" 
-          class="input-field"
-          v-model="confirmPassword"
-        >
-      </div>
-      
-      <div v-if="error" class="error-message">
-        {{ error }}
-      </div>
-      
-      <button class="register-button" @click="register" :disabled="loading">
-        <span v-if="loading" class="loading-spinner">⏳</span>
-        <span v-else>注册</span>
-      </button>
-      
-      <div class="login-link">
-        <span>已有账号? </span>
-        <router-link to="/login">立即登录</router-link>
-      </div>
+        <div class="form-group">
+          <input 
+            type="text" 
+            placeholder="用户名" 
+            class="input-field"
+            v-model="username"
+          >
+        </div>
+        <div class="form-group">
+          <input 
+            type="email" 
+            placeholder="邮箱" 
+            class="input-field"
+            v-model="email"
+          >
+        </div>
+        <div class="form-group">
+          <input 
+            type="password" 
+            placeholder="密码" 
+            class="input-field"
+            v-model="password"
+          >
+        </div>
+        <div class="form-group">
+          <input 
+            type="password" 
+            placeholder="确认密码" 
+            class="input-field"
+            v-model="confirmPassword"
+          >
+        </div>
+        
+        <div v-if="error" class="error-message">
+          {{ error }}
+        </div>
+        
+        <button class="register-button" type="submit" :disabled="loading">
+          <span v-if="loading" class="loading-spinner">⏳</span>
+          <span v-else>注册</span>
+        </button>
+        
+        <div class="login-link">
+          <span>已有账号? </span>
+          <router-link to="/login">立即登录</router-link>
+        </div>
+      </form>
     </div>
   </div>
 </template>

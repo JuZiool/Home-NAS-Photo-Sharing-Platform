@@ -1,49 +1,51 @@
 <template>
   <div class="login-container">
     <div class="login-form">
-      <div class="logo">
-        <div class="logo-icon">
-          <span>📸</span>
+      <form @submit.prevent="login">
+        <div class="logo">
+          <div class="logo-icon">
+            <span>📸</span>
+          </div>
+          <div class="logo-text">PhotoShare</div>
         </div>
-        <div class="logo-text">PhotoShare</div>
-      </div>
-      <div class="form-group">
-        <input 
-          type="text" 
-          placeholder="用户名 (建议: admin)" 
-          class="input-field"
-          v-model="username"
-        >
-      </div>
-      <div class="form-group">
-        <input 
-          type="password" 
-          placeholder="密码 (建议: 123456)" 
-          class="input-field"
-          v-model="password"
-        >
-      </div>
-      <div class="form-options">
-        <label class="remember-me">
-          <input type="checkbox" v-model="remember">
-          <span>记住登录</span>
-        </label>
-        <a href="#" class="forgot-password">忘记密码?</a>
-      </div>
-      
-      <div v-if="error" class="error-message">
-        {{ error }}
-      </div>
-      
-      <button class="login-button" @click="login" :disabled="loading">
-        <span v-if="loading" class="loading-spinner">⏳</span>
-        <span v-else>登录</span>
-      </button>
-      
-      <div class="register-link">
-        <span>还没有账号? </span>
-        <router-link to="/register">立即注册</router-link>
-      </div>
+        <div class="form-group">
+          <input 
+            type="text" 
+            placeholder="用户名 (建议: admin)" 
+            class="input-field"
+            v-model="username"
+          >
+        </div>
+        <div class="form-group">
+          <input 
+            type="password" 
+            placeholder="密码 (建议: 123456)" 
+            class="input-field"
+            v-model="password"
+          >
+        </div>
+        <div class="form-options">
+          <label class="remember-me">
+            <input type="checkbox" v-model="remember">
+            <span>记住登录</span>
+          </label>
+          <a href="#" class="forgot-password">忘记密码?</a>
+        </div>
+        
+        <div v-if="error" class="error-message">
+          {{ error }}
+        </div>
+        
+        <button class="login-button" type="submit" :disabled="loading">
+          <span v-if="loading" class="loading-spinner">⏳</span>
+          <span v-else>登录</span>
+        </button>
+        
+        <div class="register-link">
+          <span>还没有账号? </span>
+          <router-link to="/register">立即注册</router-link>
+        </div>
+      </form>
     </div>
   </div>
 </template>
