@@ -1,5 +1,9 @@
 version: '3.8'
 
+# 使用环境变量文件
+env_file:
+  - .env
+
 services:
   # 前端服务
   frontend:
@@ -8,11 +12,35 @@ services:
       dockerfile: Dockerfile
     container_name: photo_sharing_frontend
     ports:
-      - "3334:80"
+      - "${FRONTEND_PORT:-3334}:80"
     depends_on:
       - backend
     networks:
-      - photo_network
+      - frontend_network
+    # 自动重启策略
+    restart: unless-stopped
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      timeout: 10s
+      retries: 5
+      interval: 30s
+      start_period: 30s
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '512M'
+        reservations:
+          cpus: '0.25'
+          memory: '256M'
+    # 日志配置
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # 后端服务（Nginx + PHP-FPM）
   backend:
@@ -21,47 +49,118 @@ services:
       dockerfile: Dockerfile
     container_name: photo_sharing_backend
     ports:
-      - "3333:80"
+      - "${BACKEND_PORT:-3333}:80"
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     volumes:
       - ./backend:/var/www/html
       - ./backend/nginx/conf.d:/etc/nginx/conf.d
       - ./Photos:/var/www/html/Photos
       - ./TheDeletePhotos:/var/www/html/TheDeletePhotos
     networks:
-      - photo_network
+      - frontend_network
+      - backend_network
+      - db_network
+    # 自动重启策略
+    restart: unless-stopped
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/api/auth/login"]
+      timeout: 10s
+      retries: 5
+      interval: 30s
+      start_period: 60s
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: '1G'
+        reservations:
+          cpus: '0.5'
+          memory: '512M'
+    # 日志配置
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
 
   # MySQL数据库服务
   mysql:
     image: mysql:8.0
     container_name: photo_sharing_mysql
-    ports:
-      - "3306:3306"
+    # 只在内部网络暴露端口，不对外暴露
+    expose:
+      - "3306"
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: photodb
-      MYSQL_USER: photouser
-      MYSQL_PASSWORD: photopassword
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-photodb}
+      MYSQL_USER: ${MYSQL_USER:-photouser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-photopassword}
     volumes:
       - mysql_data:/var/lib/mysql
       - ./backend/mysql/init:/docker-entrypoint-initdb.d
     networks:
-      - photo_network
+      - db_network
+    # 自动重启策略
+    restart: unless-stopped
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+      interval: 30s
+      start_period: 30s
+    # 日志配置
+    logging:
+      driver: json-file
+      options:
+        max-size: "30m"
+        max-file: "5"
 
   # Redis缓存服务（可选）
   redis:
     image: redis:7.0
     container_name: photo_sharing_redis
-    ports:
-      - "6379:6379"
+    # 只在内部网络暴露端口，不对外暴露
+    expose:
+      - "6379"
     networks:
-      - photo_network
+      - backend_network
+      - db_network
+    # 自动重启策略
+    restart: unless-stopped
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 5s
+      retries: 10
+      interval: 30s
+      start_period: 30s
+    # 日志配置
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   mysql_data:
     driver: local
 
+# 网络配置
 networks:
-  photo_network:
+  # 前端网络
+  frontend_network:
     driver: bridge
+    internal: false
+  # 后端网络
+  backend_network:
+    driver: bridge
+    internal: true
+  # 数据库网络
+  db_network:
+    driver: bridge
+    internal: true
