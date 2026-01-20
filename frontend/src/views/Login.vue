@@ -14,6 +14,7 @@
             placeholder="用户名 (建议: admin)" 
             class="input-field"
             v-model="username"
+            autocomplete="username"
           >
         </div>
         <div class="form-group">

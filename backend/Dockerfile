@@ -1,8 +1,8 @@
 # 使用官方Nginx镜像作为基础
 FROM nginx:stable-alpine
 
-# 安装PHP和必要的扩展
-RUN apk add --no-cache php php-fpm php-pdo php-pdo_mysql php-mysqli php-curl php-json php-gd php-exif
+# 安装PHP和必要的扩展，确保安装php-fpm和正确版本
+RUN apk add --no-cache php83 php83-fpm php83-pdo php83-pdo_mysql php83-mysqli php83-curl php83-json php83-gd php83-exif
 
 # 复制Nginx配置文件
 COPY nginx/conf.d/ /etc/nginx/conf.d/

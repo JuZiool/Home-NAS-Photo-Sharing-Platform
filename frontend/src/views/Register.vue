@@ -9,21 +9,23 @@
           <div class="logo-text">PhotoShare</div>
         </div>
         <div class="form-group">
-          <input 
-            type="text" 
-            placeholder="用户名" 
-            class="input-field"
-            v-model="username"
-          >
-        </div>
+        <input 
+          type="text" 
+          placeholder="用户名" 
+          class="input-field"
+          v-model="username"
+          autocomplete="username"
+        >
+      </div>
         <div class="form-group">
-          <input 
-            type="email" 
-            placeholder="邮箱" 
-            class="input-field"
-            v-model="email"
-          >
-        </div>
+        <input 
+          type="email" 
+          placeholder="邮箱" 
+          class="input-field"
+          v-model="email"
+          autocomplete="email"
+        >
+      </div>
         <div class="form-group">
         <input 
           type="password" 
