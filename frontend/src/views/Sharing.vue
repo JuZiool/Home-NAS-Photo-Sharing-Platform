@@ -21,6 +21,7 @@
   font-size: 24px;
   font-weight: 600;
   margin-bottom: 40px;
+  color: #ffffff;
 }
 
 .content-placeholder {
@@ -42,5 +43,16 @@
 
 .placeholder-text {
   font-size: 16px;
+}
+
+/* 亮色主题适配 */
+.light-mode .sharing h1 {
+  color: #212529;
+}
+
+.light-mode .content-placeholder {
+  background-color: #f8f9fa;
+  border-color: #dee2e6;
+  color: #6c757d;
 }
 </style>

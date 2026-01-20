@@ -8,7 +8,7 @@ services:
       dockerfile: Dockerfile
     container_name: photo_sharing_frontend
     ports:
-      - "3000:80"
+      - "3334:80"
     depends_on:
       - backend
     networks:
@@ -21,7 +21,7 @@ services:
       dockerfile: Dockerfile
     container_name: photo_sharing_backend
     ports:
-      - "8000:80"
+      - "3333:80"
     depends_on:
       - mysql
     volumes:
