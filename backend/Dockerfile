@@ -16,6 +16,11 @@ COPY src/ /var/www/html/
 # 设置权限
 RUN chown -R nginx:nginx /var/www/html /var/log/nginx /var/cache/nginx
 
+# 确保照片目录存在并设置正确权限
+RUN mkdir -p /var/www/html/Photos /var/www/html/TheDeletePhotos
+RUN chown -R nginx:nginx /var/www/html/Photos /var/www/html/TheDeletePhotos
+RUN chmod -R 755 /var/www/html/Photos /var/www/html/TheDeletePhotos
+
 # 暴露端口
 EXPOSE 80
 
