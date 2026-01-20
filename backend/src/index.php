@@ -466,9 +466,6 @@ if (strpos($path, '/api/photos') === 0) {
             exit;
         }
         
-        // 提取照片拍摄日期
-        $takenAt = extractPhotoTakenDate($destination);
-        
         // 准备照片信息
         $photoInfo = [
             'user_id' => $userId,
@@ -480,12 +477,11 @@ if (strpos($path, '/api/photos') === 0) {
             'url' => '/Photos/' . $userId . '/' . $filename,
             'thumbnail_url' => null,
             'is_favorite' => 0, // 使用整数0表示false
-            'is_deleted' => 0, // 使用整数0表示false
-            'taken_at' => $takenAt
+            'is_deleted' => 0 // 使用整数0表示false
         ];
         
         // 保存到数据库
-        $stmt = $pdo->prepare("INSERT INTO photos (user_id, album_id, filename, original_name, size, type, url, thumbnail_url, is_favorite, is_deleted, taken_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $pdo->prepare("INSERT INTO photos (user_id, album_id, filename, original_name, size, type, url, thumbnail_url, is_favorite, is_deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         if ($stmt->execute([
             $photoInfo['user_id'],
             $photoInfo['album_id'],
@@ -496,8 +492,7 @@ if (strpos($path, '/api/photos') === 0) {
             $photoInfo['url'],
             $photoInfo['thumbnail_url'],
             $photoInfo['is_favorite'],
-            $photoInfo['is_deleted'],
-            $photoInfo['taken_at']
+            $photoInfo['is_deleted']
         ])) {
             $photoId = $pdo->lastInsertId();
             $photoInfo['id'] = $photoId;
@@ -887,9 +882,6 @@ if (strpos($path, '/api/albums') === 0) {
             // 移动文件到用户目录
             $destination = $userPhotosDir . '/' . $filename;
             if (move_uploaded_file($file['tmp_name'], $destination)) {
-                // 提取照片拍摄日期
-                $takenAt = extractPhotoTakenDate($destination);
-                
                 // 准备照片信息
                 $photoInfo = [
                     'user_id' => $userId,
@@ -901,12 +893,11 @@ if (strpos($path, '/api/albums') === 0) {
                     'url' => '/Photos/' . $userId . '/' . $filename,
                     'thumbnail_url' => null,
                     'is_favorite' => 0, // 使用整数0表示false
-                    'is_deleted' => 0, // 使用整数0表示false
-                    'taken_at' => $takenAt
+                    'is_deleted' => 0 // 使用整数0表示false
                 ];
                 
                 // 保存到数据库
-                $stmt = $pdo->prepare("INSERT INTO photos (user_id, album_id, filename, original_name, size, type, url, thumbnail_url, is_favorite, is_deleted, taken_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt = $pdo->prepare("INSERT INTO photos (user_id, album_id, filename, original_name, size, type, url, thumbnail_url, is_favorite, is_deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                 if ($stmt->execute([
                     $photoInfo['user_id'],
                     $photoInfo['album_id'],
@@ -917,8 +908,7 @@ if (strpos($path, '/api/albums') === 0) {
                     $photoInfo['url'],
                     $photoInfo['thumbnail_url'],
                     $photoInfo['is_favorite'],
-                    $photoInfo['is_deleted'],
-                    $photoInfo['taken_at']
+                    $photoInfo['is_deleted']
                 ])) {
                     $photoId = $pdo->lastInsertId();
                     $photoInfo['id'] = $photoId;
