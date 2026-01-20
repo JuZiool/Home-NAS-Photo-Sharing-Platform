@@ -1,9 +1,5 @@
 version: '3.8'
 
-# 使用环境变量文件
-env_file:
-  - .env
-
 services:
   # 前端服务
   frontend:
