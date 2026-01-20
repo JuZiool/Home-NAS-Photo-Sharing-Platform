@@ -12,7 +12,7 @@ services:
     depends_on:
       - backend
     networks:
-      - frontend_network
+      - photo_network
     # 自动重启策略
     restart: unless-stopped
     # 健康检查
@@ -55,9 +55,7 @@ services:
       - ./Photos:/var/www/html/Photos
       - ./TheDeletePhotos:/var/www/html/TheDeletePhotos
     networks:
-      - frontend_network
-      - backend_network
-      - db_network
+      - photo_network
     # 自动重启策略
     restart: unless-stopped
     # 健康检查
@@ -99,7 +97,7 @@ services:
       - mysql_data:/var/lib/mysql
       - ./backend/mysql/init:/docker-entrypoint-initdb.d
     networks:
-      - db_network
+      - photo_network
     # 自动重启策略
     restart: unless-stopped
     # 健康检查
@@ -124,8 +122,7 @@ services:
     expose:
       - "6379"
     networks:
-      - backend_network
-      - db_network
+      - photo_network
     # 自动重启策略
     restart: unless-stopped
     # 健康检查
@@ -148,15 +145,6 @@ volumes:
 
 # 网络配置
 networks:
-  # 前端网络
-  frontend_network:
+  # 默认网络，所有服务都加入这个网络
+  photo_network:
     driver: bridge
-    internal: false
-  # 后端网络
-  backend_network:
-    driver: bridge
-    internal: true
-  # 数据库网络
-  db_network:
-    driver: bridge
-    internal: true
