@@ -416,14 +416,24 @@ if (strpos($path, '/api/photos') === 0) {
     $userId = null;
     
     if (count($tokenParts) === 3) {
+        $header = json_decode(base64_decode($tokenParts[0]), true);
         $payload = json_decode(base64_decode($tokenParts[1]), true);
-        $userId = $payload['sub'] ?? null;
+        $signature = $tokenParts[2];
+        
+        // 验证token签名
+        $secretKey = 'your-secret-key-change-this-in-production';
+        $expectedSignature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode(hash_hmac('sha256', $tokenParts[0] . '.' . $tokenParts[1], $secretKey, true)));
+        
+        if ($signature === $expectedSignature) {
+            $userId = $payload['sub'] ?? null;
+        }
     }
     
     if (!$userId) {
         echo json_encode([
             'status' => 'error',
-            'message' => '无效的token'
+            'message' => '无效的token',
+            'detail' => 'JWT token验证失败'
         ], JSON_UNESCAPED_UNICODE);
         exit;
     }
@@ -741,7 +751,7 @@ if (strpos($path, '/api/albums') === 0) {
         echo json_encode([
             'status' => 'error',
             'message' => '未授权'
-        ]);
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
     
@@ -751,13 +761,22 @@ if (strpos($path, '/api/albums') === 0) {
     
     if (count($tokenParts) === 3) {
         $payload = json_decode(base64_decode($tokenParts[1]), true);
-        $userId = $payload['sub'] ?? null;
+        $signature = $tokenParts[2];
+        
+        // 验证token签名
+        $secretKey = 'your-secret-key-change-this-in-production';
+        $expectedSignature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode(hash_hmac('sha256', $tokenParts[0] . '.' . $tokenParts[1], $secretKey, true)));
+        
+        if ($signature === $expectedSignature) {
+            $userId = $payload['sub'] ?? null;
+        }
     }
     
     if (!$userId) {
         echo json_encode([
             'status' => 'error',
-            'message' => '无效的token'
+            'message' => '无效的token',
+            'detail' => 'JWT token验证失败'
         ], JSON_UNESCAPED_UNICODE);
         exit;
     }
@@ -898,27 +917,15 @@ if (strpos($path, '/api/albums') === 0) {
         
         // 处理文件上传
         $uploadedPhotos = [];
-        // 处理不同的文件字段名：'files' 或 'files[]'
-        $files = $_FILES['files'] ?? $_FILES['files[]'] ?? [];
+        $errorOccurred = false;
+        $errorMessage = '';
         
-        // 确保$files是数组
-        if (!is_array($files)) {
-            $files = [];
-        }
+        // 处理不同的文件字段名：支持单文件和多文件上传
+        // 单文件上传使用 'file'，多文件上传使用 'files' 或 'files[]'
+        $hasSingleFile = isset($_FILES['file']);
+        $hasMultiFiles = isset($_FILES['files']) || isset($_FILES['files[]']);
         
-        // 处理单文件上传的情况
-        if (isset($files['name']) && is_string($files['name'])) {
-            $files = [
-                'name' => [$files['name']],
-                'type' => [$files['type']],
-                'tmp_name' => [$files['tmp_name']],
-                'error' => [$files['error']],
-                'size' => [$files['size']]
-            ];
-        }
-        
-        // 确保有文件上传
-        if (empty($files['name'])) {
+        if (!$hasSingleFile && !$hasMultiFiles) {
             echo json_encode([
                 'status' => 'error',
                 'message' => '请选择要上传的文件或文件大小超过限制',
@@ -927,20 +934,27 @@ if (strpos($path, '/api/albums') === 0) {
             exit;
         }
         
-        // 遍历所有上传的文件
-        for ($i = 0; $i < count($files['name']); $i++) {
-            if (!isset($files['error'][$i]) || $files['error'][$i] !== UPLOAD_ERR_OK) {
-                // 跳过上传失败的文件
-                continue;
+        // 处理单文件上传
+        if ($hasSingleFile) {
+            $file = $_FILES['file'];
+            
+            // 确保file是数组
+            if (!is_array($file)) {
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => '文件格式错误'
+                ], JSON_UNESCAPED_UNICODE);
+                exit;
             }
             
-            $file = [
-                'name' => $files['name'][$i],
-                'type' => $files['type'][$i],
-                'tmp_name' => $files['tmp_name'][$i],
-                'error' => $files['error'][$i],
-                'size' => $files['size'][$i]
-            ];
+            // 检查文件上传错误
+            if (!isset($file['error']) || $file['error'] !== UPLOAD_ERR_OK) {
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => '文件上传失败: ' . ($file['error'] ?? '未知错误')
+                ], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
             
             // 生成唯一文件名
             $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
@@ -992,16 +1006,137 @@ if (strpos($path, '/api/albums') === 0) {
                 } else {
                     // 删除已上传的文件
                     unlink($destination);
+                    $errorOccurred = true;
+                    $errorMessage = '照片信息保存失败';
+                }
+            } else {
+                $errorOccurred = true;
+                $errorMessage = '文件移动失败';
+            }
+        } else {
+            // 处理多文件上传
+            $files = $_FILES['files'] ?? $_FILES['files[]'] ?? [];
+            
+            // 确保$files是数组
+            if (!is_array($files)) {
+                $files = [];
+            }
+            
+            // 处理单文件上传的情况
+            if (isset($files['name']) && is_string($files['name'])) {
+                $files = [
+                    'name' => [$files['name']],
+                    'type' => [$files['type']],
+                    'tmp_name' => [$files['tmp_name']],
+                    'error' => [$files['error']],
+                    'size' => [$files['size']]
+                ];
+            }
+            
+            // 确保有文件上传
+            if (empty($files['name'])) {
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => '请选择要上传的文件或文件大小超过限制',
+                    'detail' => 'PHP上传限制：' . ini_get('post_max_size')
+                ], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+            
+            // 遍历所有上传的文件
+            for ($i = 0; $i < count($files['name']); $i++) {
+                if (!isset($files['error'][$i]) || $files['error'][$i] !== UPLOAD_ERR_OK) {
+                    $errorOccurred = true;
+                    $errorMessage = '部分文件上传失败';
+                    continue;
+                }
+                
+                $file = [
+                    'name' => $files['name'][$i],
+                    'type' => $files['type'][$i],
+                    'tmp_name' => $files['tmp_name'][$i],
+                    'error' => $files['error'][$i],
+                    'size' => $files['size'][$i]
+                ];
+                
+                // 生成唯一文件名
+                $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+                $filename = uniqid() . '.' . $extension;
+                
+                // 移动文件到用户目录
+                $destination = $userPhotosDir . '/' . $filename;
+                if (move_uploaded_file($file['tmp_name'], $destination)) {
+                    // 提取照片拍摄时间
+                    $taken_at = extractPhotoTakenDate($destination);
+                    
+                    // 准备照片信息
+                    $photoInfo = [
+                        'user_id' => $userId,
+                        'album_id' => $albumId,
+                        'filename' => $filename,
+                        'original_name' => $file['name'],
+                        'size' => $file['size'],
+                        'type' => $file['type'],
+                        'url' => '/Photos/' . $userId . '/' . $filename,
+                        'thumbnail_url' => null,
+                        'is_favorite' => 0, // 使用整数0表示false
+                        'is_deleted' => 0, // 使用整数0表示false
+                        'taken_at' => $taken_at
+                    ];
+                    
+                    // 保存到数据库
+                    $stmt = $pdo->prepare("INSERT INTO photos (user_id, album_id, filename, original_name, size, type, url, thumbnail_url, is_favorite, is_deleted, taken_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    if ($stmt->execute([
+                        $photoInfo['user_id'],
+                        $photoInfo['album_id'],
+                        $photoInfo['filename'],
+                        $photoInfo['original_name'],
+                        $photoInfo['size'],
+                        $photoInfo['type'],
+                        $photoInfo['url'],
+                        $photoInfo['thumbnail_url'],
+                        $photoInfo['is_favorite'],
+                        $photoInfo['is_deleted'],
+                        $photoInfo['taken_at']
+                    ])) {
+                        $photoId = $pdo->lastInsertId();
+                        $photoInfo['id'] = $photoId;
+                        $photoInfo['created_at'] = date('Y-m-d H:i:s');
+                        $photoInfo['updated_at'] = date('Y-m-d H:i:s');
+                        $photoInfo['taken_at'] = $taken_at;
+                        
+                        $uploadedPhotos[] = $photoInfo;
+                    } else {
+                        // 删除已上传的文件
+                        unlink($destination);
+                        $errorOccurred = true;
+                        $errorMessage = '部分照片信息保存失败';
+                    }
+                } else {
+                    $errorOccurred = true;
+                    $errorMessage = '部分文件移动失败';
                 }
             }
         }
         
-        echo json_encode([
-            'status' => 'success',
-            'message' => '照片上传成功',
-            'uploaded_count' => count($uploadedPhotos),
-            'photos' => $uploadedPhotos
-        ], JSON_UNESCAPED_UNICODE);
+        // 返回响应
+        if ($errorOccurred && empty($uploadedPhotos)) {
+            // 所有文件都上传失败
+            echo json_encode([
+                'status' => 'error',
+                'message' => $errorMessage,
+                'uploaded_count' => 0,
+                'photos' => []
+            ], JSON_UNESCAPED_UNICODE);
+        } else {
+            // 部分或全部文件上传成功
+            echo json_encode([
+                'status' => $errorOccurred ? 'warning' : 'success',
+                'message' => $errorOccurred ? $errorMessage : '照片上传成功',
+                'uploaded_count' => count($uploadedPhotos),
+                'photos' => $uploadedPhotos
+            ], JSON_UNESCAPED_UNICODE);
+        }
         exit;
     }
     

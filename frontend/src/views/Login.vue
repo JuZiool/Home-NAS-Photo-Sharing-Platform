@@ -11,7 +11,7 @@
         <div class="form-group">
           <input 
             type="text" 
-            placeholder="用户名 (建议: admin)" 
+            placeholder="用户名" 
             class="input-field"
             v-model="username"
             autocomplete="username"
@@ -20,7 +20,7 @@
         <div class="form-group">
         <input 
           type="password" 
-          placeholder="密码 (建议: 123456)" 
+          placeholder="密码" 
           class="input-field"
           v-model="password"
           autocomplete="current-password"

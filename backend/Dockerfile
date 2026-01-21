@@ -13,6 +13,10 @@ RUN sed -i 's/listen = \/run\/php83-fpm.sock/listen = 127.0.0.1:9000/g' /etc/php
 RUN sed -i 's/user = nobody/user = nginx/g' /etc/php83/php-fpm.d/www.conf
 RUN sed -i 's/group = nobody/group = nginx/g' /etc/php83/php-fpm.d/www.conf
 
+# 提高PHP上传限制
+RUN sed -i 's/post_max_size = 8M/post_max_size = 50M/g' /etc/php83/php.ini && \
+    sed -i 's/upload_max_filesize = 2M/upload_max_filesize = 50M/g' /etc/php83/php.ini
+
 # 设置工作目录
 WORKDIR /var/www/html
 

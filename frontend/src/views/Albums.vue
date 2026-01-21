@@ -151,6 +151,18 @@
         </div>
       </div>
     </div>
+
+    <!-- 确认对话框 -->
+    <div class="confirm-dialog-overlay" v-if="confirmDialogVisible" @click="handleConfirmDialogCancel">
+      <div class="confirm-dialog" @click.stop>
+        <h3 class="confirm-dialog-title">{{ confirmDialogTitle }}</h3>
+        <p class="confirm-dialog-message">{{ confirmDialogMessage }}</p>
+        <div class="confirm-dialog-buttons">
+          <button class="confirm-dialog-cancel" @click="handleConfirmDialogCancel">取消</button>
+          <button class="confirm-dialog-confirm" @click="handleConfirmDialogConfirm">确认</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -174,6 +186,13 @@ const isUploading = ref(false)
 const uploadStatus = ref(null) // null, 'success', 'error'
 const uploadMessage = ref('')
 
+// 确认对话框相关数据
+const confirmDialogVisible = ref(false)
+const confirmDialogTitle = ref('')
+const confirmDialogMessage = ref('')
+const confirmDialogAction = ref(null)
+const confirmDialogParams = ref(null)
+
 // 格式化日期
 const formatDate = (dateString) => {
   const date = new Date(dateString)
@@ -182,6 +201,32 @@ const formatDate = (dateString) => {
     month: 'long',
     day: 'numeric'
   })
+}
+
+// 显示确认对话框
+const showConfirmDialog = (title, message, action, params = {}) => {
+  confirmDialogTitle.value = title
+  confirmDialogMessage.value = message
+  confirmDialogAction.value = action
+  confirmDialogParams.value = params
+  confirmDialogVisible.value = true
+}
+
+// 处理确认对话框取消
+const handleConfirmDialogCancel = () => {
+  confirmDialogVisible.value = false
+  confirmDialogAction.value = null
+  confirmDialogParams.value = null
+}
+
+// 处理确认对话框确认
+const handleConfirmDialogConfirm = () => {
+  if (confirmDialogAction.value) {
+    confirmDialogAction.value(confirmDialogParams.value)
+  }
+  confirmDialogVisible.value = false
+  confirmDialogAction.value = null
+  confirmDialogParams.value = null
 }
 
 // 获取相册列表
@@ -292,17 +337,20 @@ const handleFileUpload = async (event) => {
 
 // 删除相册
 const deleteAlbum = async (album) => {
-  if (!confirm(`确定要删除相册 "${album.name}" 及其所有照片吗？`)) {
-    return
-  }
-  
-  try {
-    await albumsAPI.deleteAlbum(album.id)
-    // 删除成功后重新获取相册列表
-    fetchAlbums()
-  } catch (err) {
-    console.error('删除相册失败:', err)
-  }
+  // 使用自定义确认对话框
+  showConfirmDialog(
+    '确认删除',
+    `确定要删除相册 "${album.name}" 及其所有照片吗？`,
+    async () => {
+      try {
+        await albumsAPI.deleteAlbum(album.id)
+        // 删除成功后重新获取相册列表
+        fetchAlbums()
+      } catch (err) {
+        console.error('删除相册失败:', err)
+      }
+    }
+  )
 }
 
 // 页面加载时获取相册列表
@@ -813,7 +861,104 @@ onMounted(() => {
   box-shadow: none;
 }
 
+/* 确认对话框样式 */
+.confirm-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1001;
+}
+
+.confirm-dialog {
+  background-color: #1a1a1a;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border: 1px solid #333333;
+}
+
+.confirm-dialog-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: #ffffff;
+}
+
+.confirm-dialog-message {
+  font-size: 14px;
+  color: #cccccc;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+}
+
+.confirm-dialog-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.confirm-dialog-cancel,
+.confirm-dialog-confirm {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.confirm-dialog-cancel {
+  background-color: #333333;
+  color: #ffffff;
+}
+
+.confirm-dialog-cancel:hover {
+  background-color: #444444;
+}
+
+.confirm-dialog-confirm {
+  background: linear-gradient(135deg, #ff4757 0%, #ff3742 100%);
+  color: #ffffff;
+}
+
+.confirm-dialog-confirm:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 71, 87, 0.4);
+}
+
 /* 亮色主题适配 */
+:root.light-mode .confirm-dialog {
+  background-color: #ffffff;
+  border-color: #e9ecef;
+}
+
+:root.light-mode .confirm-dialog-title {
+  color: #212529;
+}
+
+:root.light-mode .confirm-dialog-message {
+  color: #495057;
+}
+
+:root.light-mode .confirm-dialog-cancel {
+  background-color: #e9ecef;
+  color: #495057;
+}
+
+:root.light-mode .confirm-dialog-cancel:hover {
+  background-color: #dee2e6;
+}
+
 :root.light-mode .page-header h1 {
   color: #212529;
 }
