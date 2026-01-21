@@ -93,6 +93,7 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-photodb}
       MYSQL_USER: ${MYSQL_USER:-photouser}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-photopassword}
+      MYSQL_INITDB_SKIP_TZINFO: "1"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./backend/mysql/init:/docker-entrypoint-initdb.d
