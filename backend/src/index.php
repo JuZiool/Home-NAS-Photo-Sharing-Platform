@@ -29,7 +29,7 @@ try {
     echo json_encode([
         'status' => 'error',
         'message' => 'Database connection failed: ' . $e->getMessage()
-    ]);
+    ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -120,7 +120,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 // 健康检查
 if ($path === '/health') {
-    echo json_encode(['status' => 'OK']);
+    echo json_encode(['status' => 'OK'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -131,7 +131,7 @@ if ($path === '/' || $path === '/index.php') {
         'message' => 'Photo Sharing Platform API is running',
         'timestamp' => date('Y-m-d H:i:s'),
         'version' => '1.0.0'
-    ]);
+    ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -146,7 +146,7 @@ if (strpos($path, '/api/auth') === 0) {
             echo json_encode([
                 'status' => 'error',
                 'message' => '用户名和密码不能为空'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
@@ -159,7 +159,7 @@ if (strpos($path, '/api/auth') === 0) {
             echo json_encode([
                 'status' => 'error',
                 'message' => '用户名不存在'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
@@ -168,7 +168,7 @@ if (strpos($path, '/api/auth') === 0) {
             echo json_encode([
                 'status' => 'error',
                 'message' => '密码错误'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
@@ -184,7 +184,7 @@ if (strpos($path, '/api/auth') === 0) {
                 'username' => $user['username'],
                 'email' => $user['email']
             ]
-        ]);
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
     
@@ -198,7 +198,7 @@ if (strpos($path, '/api/auth') === 0) {
             echo json_encode([
                 'status' => 'error',
                 'message' => '用户名、邮箱和密码不能为空'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
@@ -209,7 +209,7 @@ if (strpos($path, '/api/auth') === 0) {
             echo json_encode([
                 'status' => 'error',
                 'message' => '用户名已存在'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
@@ -220,7 +220,7 @@ if (strpos($path, '/api/auth') === 0) {
             echo json_encode([
                 'status' => 'error',
                 'message' => '邮箱已存在'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
@@ -241,12 +241,12 @@ if (strpos($path, '/api/auth') === 0) {
                     'username' => $username,
                     'email' => $email
                 ]
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
         } else {
             echo json_encode([
                 'status' => 'error',
                 'message' => '注册失败'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
         }
         exit;
     }
@@ -259,7 +259,7 @@ if (strpos($path, '/api/auth') === 0) {
             echo json_encode([
                 'status' => 'error',
                 'message' => '未授权'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
@@ -287,7 +287,7 @@ if (strpos($path, '/api/auth') === 0) {
                     echo json_encode([
                         'status' => 'success',
                         'user' => $user
-                    ]);
+                    ], JSON_UNESCAPED_UNICODE);
                     exit;
                 }
             }
@@ -302,7 +302,7 @@ if (strpos($path, '/api/auth') === 0) {
                 'email' => 'test@example.com',
                 'created_at' => '2026-01-19 00:48:09'
             ]
-        ]);
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
     
@@ -312,7 +312,7 @@ if (strpos($path, '/api/auth') === 0) {
         echo json_encode([
             'status' => 'success',
             'message' => '退出登录成功'
-        ]);
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
     
@@ -324,7 +324,7 @@ if (strpos($path, '/api/auth') === 0) {
             echo json_encode([
                 'status' => 'error',
                 'message' => '未授权'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
@@ -335,7 +335,7 @@ if (strpos($path, '/api/auth') === 0) {
             echo json_encode([
                 'status' => 'error',
                 'message' => '原密码和新密码不能为空'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
@@ -357,7 +357,7 @@ if (strpos($path, '/api/auth') === 0) {
                     echo json_encode([
                         'status' => 'error',
                         'message' => '用户不存在'
-                    ]);
+                    ], JSON_UNESCAPED_UNICODE);
                     exit;
                 }
                 
@@ -366,7 +366,7 @@ if (strpos($path, '/api/auth') === 0) {
                     echo json_encode([
                         'status' => 'error',
                         'message' => '原密码错误'
-                    ]);
+                    ], JSON_UNESCAPED_UNICODE);
                     exit;
                 }
                 
@@ -379,12 +379,12 @@ if (strpos($path, '/api/auth') === 0) {
                     echo json_encode([
                         'status' => 'success',
                         'message' => '密码修改成功'
-                    ]);
+                    ], JSON_UNESCAPED_UNICODE);
                 } else {
                     echo json_encode([
                         'status' => 'error',
                         'message' => '密码修改失败'
-                    ]);
+                    ], JSON_UNESCAPED_UNICODE);
                 }
                 exit;
             }
@@ -394,7 +394,7 @@ if (strpos($path, '/api/auth') === 0) {
         echo json_encode([
             'status' => 'error',
             'message' => '无效的token'
-        ]);
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
 }
@@ -407,7 +407,7 @@ if (strpos($path, '/api/photos') === 0) {
         echo json_encode([
             'status' => 'error',
             'message' => '未授权'
-        ]);
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
     
@@ -424,7 +424,7 @@ if (strpos($path, '/api/photos') === 0) {
         echo json_encode([
             'status' => 'error',
             'message' => '无效的token'
-        ]);
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
     
@@ -450,19 +450,29 @@ if (strpos($path, '/api/photos') === 0) {
         if (empty($_FILES['file'])) {
             echo json_encode([
                 'status' => 'error',
-                'message' => '请选择要上传的文件'
-            ]);
+                'message' => '请选择要上传的文件或文件大小超过限制',
+                'detail' => 'PHP上传限制：' . ini_get('post_max_size')
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
         $file = $_FILES['file'];
         
-        // 检查文件上传错误
-        if ($file['error'] !== UPLOAD_ERR_OK) {
+        // 确保file是数组
+        if (!is_array($file)) {
             echo json_encode([
                 'status' => 'error',
-                'message' => '文件上传失败: ' . $file['error']
-            ]);
+                'message' => '文件格式错误'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
+        // 检查文件上传错误
+        if (!isset($file['error']) || $file['error'] !== UPLOAD_ERR_OK) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => '文件上传失败: ' . ($file['error'] ?? '未知错误')
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
@@ -476,7 +486,7 @@ if (strpos($path, '/api/photos') === 0) {
             echo json_encode([
                 'status' => 'error',
                 'message' => '文件移动失败'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
@@ -520,7 +530,7 @@ if (strpos($path, '/api/photos') === 0) {
                 'status' => 'success',
                 'message' => '照片上传成功',
                 'photo' => $photoInfo
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
         } else {
             // 删除已上传的文件
             unlink($destination);
@@ -528,7 +538,7 @@ if (strpos($path, '/api/photos') === 0) {
             echo json_encode([
                 'status' => 'error',
                 'message' => '照片信息保存失败'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
         }
         
         exit;
@@ -543,7 +553,7 @@ if (strpos($path, '/api/photos') === 0) {
         echo json_encode([
             'status' => 'success',
             'photos' => $photos
-        ]);
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
     
@@ -560,7 +570,7 @@ if (strpos($path, '/api/photos') === 0) {
             echo json_encode([
                 'status' => 'error',
                 'message' => '照片不存在或无权限访问'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
@@ -603,12 +613,12 @@ if (strpos($path, '/api/photos') === 0) {
             echo json_encode([
                 'status' => 'success',
                 'message' => '照片已删除并移至回收站'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
         } else {
             echo json_encode([
                 'status' => 'error',
                 'message' => '照片删除失败'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
         }
         exit;
     }
@@ -629,7 +639,7 @@ if (strpos($path, '/api/photos') === 0) {
         echo json_encode([
             'status' => 'success',
             'photos' => $photos
-        ]);
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
     
@@ -646,7 +656,7 @@ if (strpos($path, '/api/photos') === 0) {
             echo json_encode([
                 'status' => 'error',
                 'message' => '照片不存在或无权限访问'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
@@ -671,12 +681,12 @@ if (strpos($path, '/api/photos') === 0) {
             echo json_encode([
                 'status' => 'success',
                 'message' => '照片已成功恢复'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
         } else {
             echo json_encode([
                 'status' => 'error',
                 'message' => '照片恢复失败'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
         }
         exit;
     }
@@ -694,7 +704,7 @@ if (strpos($path, '/api/photos') === 0) {
             echo json_encode([
                 'status' => 'error',
                 'message' => '照片不存在或无权限访问'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
@@ -712,12 +722,12 @@ if (strpos($path, '/api/photos') === 0) {
             echo json_encode([
                 'status' => 'success',
                 'message' => '照片已永久删除'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
         } else {
             echo json_encode([
                 'status' => 'error',
                 'message' => '照片删除失败'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
         }
         exit;
     }
@@ -748,7 +758,7 @@ if (strpos($path, '/api/albums') === 0) {
         echo json_encode([
             'status' => 'error',
             'message' => '无效的token'
-        ]);
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
     
@@ -761,7 +771,7 @@ if (strpos($path, '/api/albums') === 0) {
         echo json_encode([
             'status' => 'success',
             'albums' => $albums
-        ]);
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
     
@@ -774,7 +784,7 @@ if (strpos($path, '/api/albums') === 0) {
             echo json_encode([
                 'status' => 'error',
                 'message' => '相册名称不能为空'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
@@ -794,12 +804,12 @@ if (strpos($path, '/api/albums') === 0) {
                     'updated_at' => date('Y-m-d H:i:s'),
                     'photo_count' => 0
                 ]
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
         } else {
             echo json_encode([
                 'status' => 'error',
                 'message' => '相册创建失败'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
         }
         
         exit;
@@ -817,12 +827,12 @@ if (strpos($path, '/api/albums') === 0) {
             echo json_encode([
                 'status' => 'success',
                 'album' => $album
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
         } else {
             echo json_encode([
                 'status' => 'error',
                 'message' => '相册不存在或无权限访问'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
         }
         
         exit;
@@ -839,7 +849,7 @@ if (strpos($path, '/api/albums') === 0) {
             echo json_encode([
                 'status' => 'error',
                 'message' => '相册不存在或无权限访问'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
@@ -851,7 +861,7 @@ if (strpos($path, '/api/albums') === 0) {
         echo json_encode([
             'status' => 'success',
             'photos' => $photos
-        ]);
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
     
@@ -866,7 +876,7 @@ if (strpos($path, '/api/albums') === 0) {
             echo json_encode([
                 'status' => 'error',
                 'message' => '相册不存在或无权限访问'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
@@ -891,6 +901,11 @@ if (strpos($path, '/api/albums') === 0) {
         // 处理不同的文件字段名：'files' 或 'files[]'
         $files = $_FILES['files'] ?? $_FILES['files[]'] ?? [];
         
+        // 确保$files是数组
+        if (!is_array($files)) {
+            $files = [];
+        }
+        
         // 处理单文件上传的情况
         if (isset($files['name']) && is_string($files['name'])) {
             $files = [
@@ -902,9 +917,20 @@ if (strpos($path, '/api/albums') === 0) {
             ];
         }
         
+        // 确保有文件上传
+        if (empty($files['name'])) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => '请选择要上传的文件或文件大小超过限制',
+                'detail' => 'PHP上传限制：' . ini_get('post_max_size')
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
         // 遍历所有上传的文件
         for ($i = 0; $i < count($files['name']); $i++) {
-            if ($files['error'][$i] !== UPLOAD_ERR_OK) {
+            if (!isset($files['error'][$i]) || $files['error'][$i] !== UPLOAD_ERR_OK) {
+                // 跳过上传失败的文件
                 continue;
             }
             
@@ -975,7 +1001,7 @@ if (strpos($path, '/api/albums') === 0) {
             'message' => '照片上传成功',
             'uploaded_count' => count($uploadedPhotos),
             'photos' => $uploadedPhotos
-        ]);
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
     
@@ -990,7 +1016,7 @@ if (strpos($path, '/api/albums') === 0) {
             echo json_encode([
                 'status' => 'error',
                 'message' => '相册不存在或无权限访问'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
@@ -1025,7 +1051,7 @@ if (strpos($path, '/api/albums') === 0) {
             echo json_encode([
                 'status' => 'success',
                 'message' => '相册删除成功'
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
         } catch (Exception $e) {
             // 回滚事务
             $pdo->rollBack();
@@ -1033,7 +1059,7 @@ if (strpos($path, '/api/albums') === 0) {
             echo json_encode([
                 'status' => 'error',
                 'message' => '相册删除失败: ' . $e->getMessage()
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
         }
         
         exit;
@@ -1045,4 +1071,4 @@ echo json_encode([
     'status' => 'error',
     'message' => 'API endpoint not found',
     'path' => $path
-]);
+], JSON_UNESCAPED_UNICODE);
