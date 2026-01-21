@@ -29,6 +29,10 @@ docker compose up -d
 - 前端：`http://localhost:3334`
 - 后端 API：`http://localhost:3333`
 
+### 初始用户
+- 用户名：`testuser`
+- 密码：`password`
+
 ## 备份
 
 ### 数据库
