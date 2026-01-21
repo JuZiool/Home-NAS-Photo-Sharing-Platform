@@ -101,6 +101,114 @@ function extractPhotoTakenDate($filePath) {
     return null;
 }
 
+// 生成缩略图的函数
+function generateThumbnail($filePath, $outputPath, $maxWidth = 200, $maxHeight = 200) {
+    // 确保输出目录存在
+    $outputDir = dirname($outputPath);
+    if (!file_exists($outputDir)) {
+        mkdir($outputDir, 0755, true);
+    }
+    
+    // 检查文件是否为图像
+    $imageInfo = getimagesize($filePath);
+    if (!$imageInfo) {
+        error_log("generateThumbnail: Not an image - $filePath");
+        return false;
+    }
+    
+    $originalWidth = $imageInfo[0];
+    $originalHeight = $imageInfo[1];
+    $imageType = $imageInfo[2];
+    
+    // 计算缩放比例
+    $widthRatio = $maxWidth / $originalWidth;
+    $heightRatio = $maxHeight / $originalHeight;
+    $ratio = min($widthRatio, $heightRatio);
+    
+    $newWidth = intval($originalWidth * $ratio);
+    $newHeight = intval($originalHeight * $ratio);
+    
+    // 创建新图像
+    $newImage = imagecreatetruecolor($newWidth, $newHeight);
+    if (!$newImage) {
+        error_log("generateThumbnail: Failed to create new image - $filePath");
+        return false;
+    }
+    
+    // 根据图像类型读取原始图像
+    $sourceImage = null;
+    switch ($imageType) {
+        case IMAGETYPE_JPEG:
+            $sourceImage = imagecreatefromjpeg($filePath);
+            break;
+        case IMAGETYPE_PNG:
+            $sourceImage = imagecreatefrompng($filePath);
+            // 保留PNG透明通道
+            imagesavealpha($newImage, true);
+            $transparent = imagecolorallocatealpha($newImage, 0, 0, 0, 127);
+            imagefill($newImage, 0, 0, $transparent);
+            break;
+        case IMAGETYPE_GIF:
+            $sourceImage = imagecreatefromgif($filePath);
+            break;
+        default:
+            error_log("generateThumbnail: Unsupported image type - $imageType for $filePath");
+            imagedestroy($newImage);
+            return false;
+    }
+    
+    if (!$sourceImage) {
+        error_log("generateThumbnail: Failed to load source image - $filePath");
+        imagedestroy($newImage);
+        return false;
+    }
+    
+    // 缩放图像
+    $result = imagecopyresampled(
+        $newImage,
+        $sourceImage,
+        0,
+        0,
+        0,
+        0,
+        $newWidth,
+        $newHeight,
+        $originalWidth,
+        $originalHeight
+    );
+    
+    if (!$result) {
+        error_log("generateThumbnail: Failed to resize image - $filePath");
+        imagedestroy($sourceImage);
+        imagedestroy($newImage);
+        return false;
+    }
+    
+    // 保存缩略图
+    $success = false;
+    switch ($imageType) {
+        case IMAGETYPE_JPEG:
+            $success = imagejpeg($newImage, $outputPath, 80);
+            break;
+        case IMAGETYPE_PNG:
+            $success = imagepng($newImage, $outputPath, 6);
+            break;
+        case IMAGETYPE_GIF:
+            $success = imagegif($newImage, $outputPath);
+            break;
+    }
+    
+    if (!$success) {
+        error_log("generateThumbnail: Failed to save thumbnail - $outputPath");
+    }
+    
+    // 释放内存
+    imagedestroy($sourceImage);
+    imagedestroy($newImage);
+    
+    return $success;
+}
+
 // 解析请求体，支持JSON和表单格式
 $requestBody = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST' || $_SERVER['REQUEST_METHOD'] === 'PUT') {
@@ -441,6 +549,7 @@ if (strpos($path, '/api/photos') === 0) {
     // 确保照片目录存在
     $photosDir = __DIR__ . '/../Photos';
     $userPhotosDir = $photosDir . '/' . $userId;
+    $thumbnailDir = $photosDir . '/thumbnail/' . $userId;
     
     if (!file_exists($photosDir)) {
         mkdir($photosDir, 0755, true);
@@ -452,6 +561,13 @@ if (strpos($path, '/api/photos') === 0) {
         mkdir($userPhotosDir, 0755, true);
         chown($userPhotosDir, 'nginx');
         chgrp($userPhotosDir, 'nginx');
+    }
+    
+    // 确保缩略图目录存在
+    if (!file_exists($thumbnailDir)) {
+        mkdir($thumbnailDir, 0755, true);
+        chown($thumbnailDir, 'nginx');
+        chgrp($thumbnailDir, 'nginx');
     }
     
     // 照片上传
@@ -500,6 +616,14 @@ if (strpos($path, '/api/photos') === 0) {
             exit;
         }
         
+        // 生成缩略图
+        $thumbnailFilename = $filename;
+        $thumbnailPath = $thumbnailDir . '/' . $thumbnailFilename;
+        $thumbnailUrl = '/Photos/thumbnail/' . $userId . '/' . $thumbnailFilename;
+        
+        // 调用缩略图生成函数
+        generateThumbnail($destination, $thumbnailPath);
+        
         // 提取照片拍摄时间
         $taken_at = extractPhotoTakenDate($destination);
         
@@ -512,7 +636,7 @@ if (strpos($path, '/api/photos') === 0) {
             'size' => $file['size'],
             'type' => $file['type'],
             'url' => '/Photos/' . $userId . '/' . $filename,
-            'thumbnail_url' => null,
+            'thumbnail_url' => $thumbnailUrl,
             'is_favorite' => 0, // 使用整数0表示false
             'is_deleted' => 0, // 使用整数0表示false
             'taken_at' => $taken_at
@@ -542,8 +666,11 @@ if (strpos($path, '/api/photos') === 0) {
                 'photo' => $photoInfo
             ], JSON_UNESCAPED_UNICODE);
         } else {
-            // 删除已上传的文件
+            // 删除已上传的文件和缩略图
             unlink($destination);
+            if (file_exists($thumbnailPath)) {
+                unlink($thumbnailPath);
+            }
             
             echo json_encode([
                 'status' => 'error',
@@ -902,6 +1029,7 @@ if (strpos($path, '/api/albums') === 0) {
         // 确保照片目录存在
         $photosDir = __DIR__ . '/../Photos';
         $userPhotosDir = $photosDir . '/' . $userId;
+        $thumbnailDir = $photosDir . '/thumbnail/' . $userId;
         
         if (!file_exists($photosDir)) {
             mkdir($photosDir, 0755, true);
@@ -913,6 +1041,13 @@ if (strpos($path, '/api/albums') === 0) {
             mkdir($userPhotosDir, 0755, true);
             chown($userPhotosDir, 'nginx');
             chgrp($userPhotosDir, 'nginx');
+        }
+        
+        // 确保缩略图目录存在
+        if (!file_exists($thumbnailDir)) {
+            mkdir($thumbnailDir, 0755, true);
+            chown($thumbnailDir, 'nginx');
+            chgrp($thumbnailDir, 'nginx');
         }
         
         // 处理文件上传
@@ -963,6 +1098,14 @@ if (strpos($path, '/api/albums') === 0) {
             // 移动文件到用户目录
             $destination = $userPhotosDir . '/' . $filename;
             if (move_uploaded_file($file['tmp_name'], $destination)) {
+                // 生成缩略图
+                $thumbnailFilename = $filename;
+                $thumbnailPath = $thumbnailDir . '/' . $thumbnailFilename;
+                $thumbnailUrl = '/Photos/thumbnail/' . $userId . '/' . $thumbnailFilename;
+                
+                // 调用缩略图生成函数
+                generateThumbnail($destination, $thumbnailPath);
+                
                 // 提取照片拍摄时间
                 $taken_at = extractPhotoTakenDate($destination);
                 
@@ -975,7 +1118,7 @@ if (strpos($path, '/api/albums') === 0) {
                     'size' => $file['size'],
                     'type' => $file['type'],
                     'url' => '/Photos/' . $userId . '/' . $filename,
-                    'thumbnail_url' => null,
+                    'thumbnail_url' => $thumbnailUrl,
                     'is_favorite' => 0, // 使用整数0表示false
                     'is_deleted' => 0, // 使用整数0表示false
                     'taken_at' => $taken_at
@@ -1066,6 +1209,14 @@ if (strpos($path, '/api/albums') === 0) {
                 // 移动文件到用户目录
                 $destination = $userPhotosDir . '/' . $filename;
                 if (move_uploaded_file($file['tmp_name'], $destination)) {
+                    // 生成缩略图
+                    $thumbnailFilename = $filename;
+                    $thumbnailPath = $thumbnailDir . '/' . $thumbnailFilename;
+                    $thumbnailUrl = '/Photos/thumbnail/' . $userId . '/' . $thumbnailFilename;
+                    
+                    // 调用缩略图生成函数
+                    generateThumbnail($destination, $thumbnailPath);
+                    
                     // 提取照片拍摄时间
                     $taken_at = extractPhotoTakenDate($destination);
                     
@@ -1078,7 +1229,7 @@ if (strpos($path, '/api/albums') === 0) {
                         'size' => $file['size'],
                         'type' => $file['type'],
                         'url' => '/Photos/' . $userId . '/' . $filename,
-                        'thumbnail_url' => null,
+                        'thumbnail_url' => $thumbnailUrl,
                         'is_favorite' => 0, // 使用整数0表示false
                         'is_deleted' => 0, // 使用整数0表示false
                         'taken_at' => $taken_at

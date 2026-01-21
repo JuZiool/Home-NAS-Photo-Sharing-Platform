@@ -10,7 +10,7 @@
           <div v-if="!group.isMonth" class="photos-grid">
             <div class="photo-card" v-for="photo in group.photos" :key="photo.id" @click="openImageViewer(photo)">
               <img 
-                :src="`/Photos/${photo.user_id}/${photo.filename}`" 
+                :src="photo.thumbnail_url || `/Photos/${photo.user_id}/${photo.filename}`" 
                 :alt="photo.original_name" 
                 class="photo-image"
               >
