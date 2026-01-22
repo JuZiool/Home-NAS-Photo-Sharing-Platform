@@ -144,9 +144,10 @@ onMounted(() => {
 
 /* 分享列表 */
 .shares-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  align-items: start;
 }
 
 /* 分享项 */
@@ -155,11 +156,10 @@ onMounted(() => {
   border-radius: 8px;
   padding: 12px;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  max-width: 500px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 /* 分享信息 */
@@ -241,6 +241,9 @@ onMounted(() => {
 .share-actions {
   display: flex;
   gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: auto;
 }
 
 .delete-btn {
@@ -252,6 +255,7 @@ onMounted(() => {
   cursor: pointer;
   font-size: 12px;
   transition: all 0.2s ease;
+  align-self: flex-end;
 }
 
 .delete-btn:hover {
