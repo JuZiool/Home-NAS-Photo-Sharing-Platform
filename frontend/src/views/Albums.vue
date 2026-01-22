@@ -369,7 +369,6 @@ const handleFileUpload = async (event) => {
 const handleShareAlbum = (album) => {
   shareType.value = 'album'
   shareItemId.value = album.id
-  shareExpiresAt.value = null
   shareDialogVisible.value = true
 }
 

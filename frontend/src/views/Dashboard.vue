@@ -216,7 +216,6 @@ const handleSharePhoto = () => {
   
   shareType.value = 'photo'
   shareItemId.value = currentImage.value.id
-  shareExpiresAt.value = null
   shareDialogVisible.value = true
 }
 
