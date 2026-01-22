@@ -11,6 +11,13 @@ services:
       - "${FRONTEND_PORT:-3334}:80"
     depends_on:
       - backend
+    volumes:
+      # 挂载宿主机时间，解决容器内时间不正确问题
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    environment:
+      # 设置时区为Asia/Shanghai
+      - TZ=Asia/Shanghai
     networks:
       - photo_network
     # 自动重启策略
@@ -54,6 +61,12 @@ services:
       - ./backend/nginx/conf.d:/etc/nginx/conf.d
       - ./Photos:/var/www/html/Photos
       - ./TheDeletePhotos:/var/www/html/TheDeletePhotos
+      # 挂载宿主机时间，解决容器内时间不正确问题
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    environment:
+      # 设置时区为Asia/Shanghai
+      - TZ=Asia/Shanghai
     networks:
       - photo_network
     # 自动重启策略
@@ -93,10 +106,14 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-photodb}
       MYSQL_USER: ${MYSQL_USER:-photouser}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-photopassword}
-      MYSQL_INITDB_SKIP_TZINFO: "1"
+      MYSQL_INITDB_SKIP_TZINFO: "0" # 启用时区信息
+      TZ: Asia/Shanghai
     volumes:
       - mysql_data:/var/lib/mysql
       - ./backend/mysql/init:/docker-entrypoint-initdb.d
+      # 挂载宿主机时间，解决容器内时间不正确问题
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     networks:
       - photo_network
     # 自动重启策略
@@ -122,6 +139,13 @@ services:
     # 只在内部网络暴露端口，不对外暴露
     expose:
       - "6379"
+    environment:
+      # 设置时区为Asia/Shanghai
+      - TZ=Asia/Shanghai
+    volumes:
+      # 挂载宿主机时间，解决容器内时间不正确问题
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     networks:
       - photo_network
     # 自动重启策略

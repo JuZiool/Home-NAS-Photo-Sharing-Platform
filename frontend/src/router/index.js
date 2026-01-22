@@ -8,6 +8,7 @@ import Favorites from '../views/Favorites.vue'
 import Albums from '../views/Albums.vue'
 import Trash from '../views/Trash.vue'
 import Profile from '../views/Profile.vue'
+import SharedView from '../views/SharedView.vue'
 
 const routes = [
   {
@@ -24,6 +25,12 @@ const routes = [
     path: '/register',
     name: 'Register',
     component: Register,
+    meta: { requiresAuth: false }
+  },
+  {
+    path: '/shared/:code',
+    name: 'SharedView',
+    component: SharedView,
     meta: { requiresAuth: false }
   },
   {

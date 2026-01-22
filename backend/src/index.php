@@ -251,6 +251,7 @@ if (strpos($path, '/api/auth') === 0) {
         $password = $requestBody['password'] ?? '';
         
         if (empty($username) || empty($password)) {
+            http_response_code(400);
             echo json_encode([
                 'status' => 'error',
                 'message' => '用户名和密码不能为空'
@@ -264,6 +265,7 @@ if (strpos($path, '/api/auth') === 0) {
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if (!$user) {
+            http_response_code(401);
             echo json_encode([
                 'status' => 'error',
                 'message' => '用户名不存在'
@@ -273,6 +275,7 @@ if (strpos($path, '/api/auth') === 0) {
         
         // 验证密码（使用bcrypt）
         if (!password_verify($password, $user['password'])) {
+            http_response_code(401);
             echo json_encode([
                 'status' => 'error',
                 'message' => '密码错误'
@@ -362,14 +365,15 @@ if (strpos($path, '/api/auth') === 0) {
     // 获取当前用户信息
     if ($path === '/api/auth/me' && $method === 'GET') {
         // 简单的JWT验证（实际项目中建议使用专门的JWT库）
-        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-        if (empty($authHeader) || !str_starts_with($authHeader, 'Bearer ')) {
-            echo json_encode([
-                'status' => 'error',
-                'message' => '未授权'
-            ], JSON_UNESCAPED_UNICODE);
-            exit;
-        }
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if (empty($authHeader) || substr($authHeader, 0, 7) !== 'Bearer ') {
+        http_response_code(401);
+        echo json_encode([
+            'status' => 'error',
+            'message' => '未授权'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
         
         // 这里应该解析JWT获取用户ID，为了简化我们从请求中提取用户ID
         // 在实际项目中，应该使用JWT库解析token获取用户ID
@@ -401,15 +405,12 @@ if (strpos($path, '/api/auth') === 0) {
             }
         }
         
-        // 如果token解析失败或用户不存在，返回默认测试用户
+        // 如果token解析失败或用户不存在，返回错误
+        http_response_code(401);
         echo json_encode([
-            'status' => 'success',
-            'user' => [
-                'id' => 1,
-                'username' => 'testuser',
-                'email' => 'test@example.com',
-                'created_at' => '2026-01-19 00:48:09'
-            ]
+            'status' => 'error',
+            'message' => '无效的token',
+            'detail' => 'JWT token验证失败或用户不存在'
         ], JSON_UNESCAPED_UNICODE);
         exit;
     }
@@ -511,7 +512,8 @@ if (strpos($path, '/api/auth') === 0) {
 if (strpos($path, '/api/photos') === 0) {
     // 验证JWT token
     $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-    if (empty($authHeader) || !str_starts_with($authHeader, 'Bearer ')) {
+    if (empty($authHeader) || substr($authHeader, 0, 7) !== 'Bearer ') {
+        http_response_code(401);
         echo json_encode([
             'status' => 'error',
             'message' => '未授权'
@@ -538,6 +540,7 @@ if (strpos($path, '/api/photos') === 0) {
     }
     
     if (!$userId) {
+        http_response_code(401);
         echo json_encode([
             'status' => 'error',
             'message' => '无效的token',
@@ -874,7 +877,7 @@ if (strpos($path, '/api/photos') === 0) {
 if (strpos($path, '/api/albums') === 0) {
     // 验证JWT token
     $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-    if (empty($authHeader) || !str_starts_with($authHeader, 'Bearer ')) {
+    if (empty($authHeader) || substr($authHeader, 0, 7) !== 'Bearer ') {
         echo json_encode([
             'status' => 'error',
             'message' => '未授权'
@@ -900,6 +903,7 @@ if (strpos($path, '/api/albums') === 0) {
     }
     
     if (!$userId) {
+        http_response_code(401);
         echo json_encode([
             'status' => 'error',
             'message' => '无效的token',
@@ -1352,7 +1356,774 @@ if (strpos($path, '/api/albums') === 0) {
     }
 }
 
+// 分享相关路由
+if (strpos($path, '/api/shares') === 0) {
+    // 生成随机分享码的函数
+    function generateShareCode($length = 8) {
+        $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        $code = '';
+        for ($i = 0; $i < $length; $i++) {
+            $code .= $characters[rand(0, strlen($characters) - 1)];
+        }
+        return $code;
+    }
+    
+    // 获取分享列表
+    if ($path === '/api/shares' && $method === 'GET') {
+        // 验证JWT token
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        if (empty($authHeader) || substr($authHeader, 0, 7) !== 'Bearer ') {
+            http_response_code(401);
+            echo json_encode([
+                'status' => 'error',
+                'message' => '未授权'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
+        $token = substr($authHeader, 7);
+        $tokenParts = explode('.', $token);
+        $userId = null;
+        
+        if (count($tokenParts) === 3) {
+            $payload = json_decode(base64_decode($tokenParts[1]), true);
+            $signature = $tokenParts[2];
+            
+            // 验证token签名
+            $secretKey = 'your-secret-key-change-this-in-production';
+            $expectedSignature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode(hash_hmac('sha256', $tokenParts[0] . '.' . $tokenParts[1], $secretKey, true)));
+            
+            if ($signature === $expectedSignature) {
+                $userId = $payload['sub'] ?? null;
+            }
+        }
+        
+        if (!$userId) {
+            http_response_code(401);
+            echo json_encode([
+                'status' => 'error',
+                'message' => '无效的token'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
+        // 获取当前用户的分享列表
+        $stmt = $pdo->prepare("SELECT shares.*, photos.original_name as photo_name, albums.name as album_name FROM shares 
+            LEFT JOIN photos ON shares.photo_id = photos.id 
+            LEFT JOIN albums ON shares.album_id = albums.id 
+            WHERE shares.user_id = ? 
+            ORDER BY shares.created_at DESC");
+        $stmt->execute([$userId]);
+        $shares = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        echo json_encode([
+            'status' => 'success',
+            'shares' => $shares
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // 创建分享
+    if ($path === '/api/shares' && $method === 'POST') {
+        // 验证JWT token
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        if (empty($authHeader) || substr($authHeader, 0, 7) !== 'Bearer ') {
+            http_response_code(401);
+            echo json_encode([
+                'status' => 'error',
+                'message' => '未授权'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
+        $token = substr($authHeader, 7);
+        $tokenParts = explode('.', $token);
+        $userId = null;
+        
+        if (count($tokenParts) === 3) {
+            $payload = json_decode(base64_decode($tokenParts[1]), true);
+            $signature = $tokenParts[2];
+            
+            // 验证token签名
+            $secretKey = 'your-secret-key-change-this-in-production';
+            $expectedSignature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode(hash_hmac('sha256', $tokenParts[0] . '.' . $tokenParts[1], $secretKey, true)));
+            
+            if ($signature === $expectedSignature) {
+                $userId = $payload['sub'] ?? null;
+            }
+        }
+        
+        if (!$userId) {
+            http_response_code(401);
+            echo json_encode([
+                'status' => 'error',
+                'message' => '无效的token'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
+        $photoId = $requestBody['photo_id'] ?? null;
+        $albumId = $requestBody['album_id'] ?? null;
+        $expiresAt = $requestBody['expires_at'] ?? null;
+        
+        // 验证参数
+        if (!$photoId && !$albumId) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => '请选择要分享的照片或相册'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
+        // 生成分享码
+        $shareCode = generateShareCode();
+        
+        // 验证分享的资源是否属于当前用户
+        if ($photoId) {
+            $stmt = $pdo->prepare("SELECT id FROM photos WHERE id = ? AND user_id = ? AND is_deleted = false");
+            $stmt->execute([$photoId, $userId]);
+            if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => '照片不存在或无权限访问'
+                ], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+        } elseif ($albumId) {
+            $stmt = $pdo->prepare("SELECT id FROM albums WHERE id = ? AND user_id = ?");
+            $stmt->execute([$albumId, $userId]);
+            if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => '相册不存在或无权限访问'
+                ], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+        }
+        
+        // 保存分享记录
+        $stmt = $pdo->prepare("INSERT INTO shares (user_id, photo_id, album_id, share_code, expires_at) VALUES (?, ?, ?, ?, ?)");
+        if ($stmt->execute([$userId, $photoId, $albumId, $shareCode, $expiresAt])) {
+            $shareId = $pdo->lastInsertId();
+            
+            // 获取分享信息
+            $stmt = $pdo->prepare("SELECT shares.*, photos.original_name as photo_name, albums.name as album_name FROM shares 
+                LEFT JOIN photos ON shares.photo_id = photos.id 
+                LEFT JOIN albums ON shares.album_id = albums.id 
+                WHERE shares.id = ?");
+            $stmt->execute([$shareId]);
+            $share = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            echo json_encode([
+                'status' => 'success',
+                'message' => '分享创建成功',
+                'share' => $share
+            ], JSON_UNESCAPED_UNICODE);
+        } else {
+            echo json_encode([
+                'status' => 'error',
+                'message' => '分享创建失败'
+            ], JSON_UNESCAPED_UNICODE);
+        }
+        exit;
+    }
+    
+    // 通过分享码获取分享内容
+    if (preg_match('/^\/api\/shares\/([a-zA-Z0-9]+)$/', $path, $matches) && $method === 'GET') {
+        $shareCode = $matches[1];
+        
+        // 获取分享信息
+        $stmt = $pdo->prepare("SELECT shares.*, photos.original_name as photo_name, albums.name as album_name FROM shares 
+            LEFT JOIN photos ON shares.photo_id = photos.id 
+            LEFT JOIN albums ON shares.album_id = albums.id 
+            WHERE shares.share_code = ?");
+        $stmt->execute([$shareCode]);
+        $share = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$share) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => '分享链接不存在或已失效'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
+        // 检查分享是否过期
+        if ($share['expires_at'] && $share['expires_at'] < date('Y-m-d H:i:s')) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => '分享链接已过期'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
+        // 获取分享的内容
+        $shareContent = [];
+        if ($share['photo_id']) {
+            // 分享的是单张照片
+            $stmt = $pdo->prepare("SELECT * FROM photos WHERE id = ? AND is_deleted = false");
+            $stmt->execute([$share['photo_id']]);
+            $photo = $stmt->fetch(PDO::FETCH_ASSOC);
+            $shareContent['photo'] = $photo;
+        } elseif ($share['album_id']) {
+            // 分享的是相册
+            $stmt = $pdo->prepare("SELECT * FROM photos WHERE album_id = ? AND is_deleted = false ORDER BY taken_at DESC, created_at DESC");
+            $stmt->execute([$share['album_id']]);
+            $photos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $shareContent['album'] = [
+                'id' => $share['album_id'],
+                'name' => $share['album_name'],
+                'photos' => $photos
+            ];
+        }
+        
+        echo json_encode([
+            'status' => 'success',
+            'share' => $share,
+            'content' => $shareContent
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // 删除分享
+    if (preg_match('/^\/api\/shares\/([0-9]+)$/', $path, $matches) && $method === 'DELETE') {
+        $shareId = $matches[1];
+        
+        // 验证JWT token
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        if (empty($authHeader) || !str_starts_with($authHeader, 'Bearer ')) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => '未授权'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
+        $token = substr($authHeader, 7);
+        $tokenParts = explode('.', $token);
+        $userId = null;
+        
+        if (count($tokenParts) === 3) {
+            $payload = json_decode(base64_decode($tokenParts[1]), true);
+            $signature = $tokenParts[2];
+            
+            // 验证token签名
+            $secretKey = 'your-secret-key-change-this-in-production';
+            $expectedSignature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode(hash_hmac('sha256', $tokenParts[0] . '.' . $tokenParts[1], $secretKey, true)));
+            
+            if ($signature === $expectedSignature) {
+                $userId = $payload['sub'] ?? null;
+            }
+        }
+        
+        if (!$userId) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => '无效的token'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
+        // 验证分享是否属于当前用户
+        $stmt = $pdo->prepare("SELECT id FROM shares WHERE id = ? AND user_id = ?");
+        $stmt->execute([$shareId, $userId]);
+        if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => '分享不存在或无权限访问'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
+        // 删除分享
+        $stmt = $pdo->prepare("DELETE FROM shares WHERE id = ? AND user_id = ?");
+        if ($stmt->execute([$shareId, $userId])) {
+            echo json_encode([
+                'status' => 'success',
+                'message' => '分享已删除'
+            ], JSON_UNESCAPED_UNICODE);
+        } else {
+            echo json_encode([
+                'status' => 'error',
+                'message' => '分享删除失败'
+            ], JSON_UNESCAPED_UNICODE);
+        }
+        exit;
+    }
+}
+
+// 批量下载照片
+if ($path === '/api/photos/download' && $method === 'POST') {
+    // 验证JWT token
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    $token = substr($authHeader, 7);
+    $tokenParts = explode('.', $token);
+    $userId = null;
+    
+    if (count($tokenParts) === 3) {
+        $payload = json_decode(base64_decode($tokenParts[1]), true);
+        $signature = $tokenParts[2];
+        
+        // 验证token签名
+        $secretKey = 'your-secret-key-change-this-in-production';
+        $expectedSignature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode(hash_hmac('sha256', $tokenParts[0] . '.' . $tokenParts[1], $secretKey, true)));
+        
+        if ($signature === $expectedSignature) {
+            $userId = $payload['sub'] ?? null;
+        }
+    }
+    
+    if (!$userId) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => '无效的token',
+            'detail' => 'JWT token验证失败'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // 获取请求中的照片ID列表
+    $photoIds = $requestBody['photo_ids'] ?? [];
+    
+    if (empty($photoIds)) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => '请选择要下载的照片'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // 获取照片信息
+    $placeholders = implode(',', array_fill(0, count($photoIds), '?'));
+    $stmt = $pdo->prepare("SELECT * FROM photos WHERE id IN ($placeholders) AND user_id = ? AND is_deleted = false");
+    $stmt->execute(array_merge($photoIds, [$userId]));
+    $photos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    if (empty($photos)) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => '未找到要下载的照片'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // 创建临时目录用于存放ZIP文件
+    $tempDir = __DIR__ . '/../temp';
+    if (!file_exists($tempDir)) {
+        mkdir($tempDir, 0755, true);
+    }
+    
+    // 生成唯一的ZIP文件名
+    $zipFileName = 'photos_' . date('YmdHis') . '_' . uniqid() . '.zip';
+    $zipFilePath = $tempDir . '/' . $zipFileName;
+    
+    // 创建ZIP文件
+    $zip = new ZipArchive();
+    if ($zip->open($zipFilePath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'ZIP文件创建失败'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // 添加照片到ZIP文件
+    foreach ($photos as $photo) {
+        // 获取照片文件的实际路径
+        $photoFilePath = __DIR__ . '/../' . ltrim($photo['url'], '/');
+        
+        // 检查文件是否存在
+        if (file_exists($photoFilePath)) {
+            // 添加文件到ZIP，使用原始文件名
+            $zip->addFile($photoFilePath, $photo['original_name']);
+        }
+    }
+    
+    // 关闭ZIP文件
+    $zip->close();
+    
+    // 检查ZIP文件是否创建成功
+    if (!file_exists($zipFilePath)) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'ZIP文件创建失败'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // 返回ZIP文件的下载链接
+    echo json_encode([
+        'status' => 'success',
+        'message' => '照片打包成功',
+        'download_url' => '/temp/' . $zipFileName
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// 转存照片到用户相册
+if ($path === '/api/photos/transfer' && $method === 'POST') {
+    // 验证JWT token
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if (empty($authHeader) || !str_starts_with($authHeader, 'Bearer ')) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => '未授权'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    $token = substr($authHeader, 7);
+    $tokenParts = explode('.', $token);
+    $userId = null;
+    
+    if (count($tokenParts) === 3) {
+        $payload = json_decode(base64_decode($tokenParts[1]), true);
+        $signature = $tokenParts[2];
+        
+        // 验证token签名
+        $secretKey = 'your-secret-key-change-this-in-production';
+        $expectedSignature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode(hash_hmac('sha256', $tokenParts[0] . '.' . $tokenParts[1], $secretKey, true)));
+        
+        if ($signature === $expectedSignature) {
+            $userId = $payload['sub'] ?? null;
+        }
+    }
+    
+    if (!$userId) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => '无效的token',
+            'detail' => 'JWT token验证失败'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // 获取请求参数
+    $albumId = $requestBody['album_id'] ?? null;
+    $photosToTransfer = $requestBody['photos'] ?? [];
+    
+    if (!$albumId || empty($photosToTransfer)) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => '缺少必要的参数'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // 验证相册是否属于当前用户
+    $stmt = $pdo->prepare("SELECT id FROM albums WHERE id = ? AND user_id = ?");
+    $stmt->execute([$albumId, $userId]);
+    if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => '相册不存在或无权限访问'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // 确保照片目录存在
+    $photosDir = __DIR__ . '/../Photos';
+    $userPhotosDir = $photosDir . '/' . $userId;
+    $thumbnailDir = $photosDir . '/thumbnail/' . $userId;
+    
+    if (!file_exists($userPhotosDir)) {
+        mkdir($userPhotosDir, 0755, true);
+        chown($userPhotosDir, 'nginx');
+        chgrp($userPhotosDir, 'nginx');
+    }
+    
+    if (!file_exists($thumbnailDir)) {
+        mkdir($thumbnailDir, 0755, true);
+        chown($thumbnailDir, 'nginx');
+        chgrp($thumbnailDir, 'nginx');
+    }
+    
+    // 转存照片
+        $transferredCount = 0;
+        $totalCount = count($photosToTransfer);
+        
+        // 详细日志记录
+        error_log("=== Photo Transfer Start ===");
+        error_log("User ID: $userId");
+        error_log("Album ID: $albumId");
+        error_log("Total photos to transfer: $totalCount");
+        
+        foreach ($photosToTransfer as $index => $sourcePhoto) {
+            error_log("\n--- Processing photo $index/$totalCount ---");
+            
+            try {
+                // 获取原始照片文件信息
+                $sourceUrl = $sourcePhoto['url'] ?? '';
+                error_log("Source URL: $sourceUrl");
+                
+                if (empty($sourceUrl)) {
+                    error_log("Skipping: Empty source URL");
+                    continue;
+                }
+                
+                // 将URL转换为服务器本地文件路径
+                $serverRoot = __DIR__ . '/../';
+                $sourceFilePath = $serverRoot . ltrim($sourceUrl, '/');
+                error_log("Source file path: $sourceFilePath");
+                
+                // 检查源文件是否存在
+                if (!file_exists($sourceFilePath)) {
+                    error_log('Photo transfer: Source file not found - ' . $sourceFilePath);
+                    continue;
+                }
+                
+                // 获取原始文件名和扩展名
+                $originalName = $sourcePhoto['original_name'] ?? 'photo.jpg';
+                $extension = pathinfo($originalName, PATHINFO_EXTENSION);
+                error_log("Original name: $originalName, Extension: $extension");
+                
+                // 生成唯一文件名
+                $filename = uniqid() . '.' . $extension;
+                error_log("Generated filename: $filename");
+                
+                // 直接复制文件到用户目录
+                $destinationPath = $userPhotosDir . '/' . $filename;
+                error_log("Destination path: $destinationPath");
+                
+                // 确保目标目录存在且有写入权限
+                if (!is_dir($userPhotosDir)) {
+                    error_log("Creating user photos directory: $userPhotosDir");
+                    mkdir($userPhotosDir, 0755, true);
+                    chown($userPhotosDir, 'nginx');
+                    chgrp($userPhotosDir, 'nginx');
+                }
+                
+                // 复制文件
+                if (!copy($sourceFilePath, $destinationPath)) {
+                    error_log('Photo transfer: Failed to copy file - ' . $sourceFilePath . ' to ' . $destinationPath);
+                    error_log('Error details: ' . error_get_last()['message'] ?? 'Unknown error');
+                    continue;
+                }
+                error_log("File copied successfully");
+                
+                // 设置文件权限
+                chmod($destinationPath, 0644);
+                chown($destinationPath, 'nginx');
+                chgrp($destinationPath, 'nginx');
+                
+                // 生成缩略图
+                $thumbnailFilename = $filename;
+                $thumbnailPath = $thumbnailDir . '/' . $thumbnailFilename;
+                error_log("Generating thumbnail: $thumbnailPath");
+                
+                // 确保缩略图目录存在
+                if (!is_dir($thumbnailDir)) {
+                    error_log("Creating thumbnail directory: $thumbnailDir");
+                    mkdir($thumbnailDir, 0755, true);
+                    chown($thumbnailDir, 'nginx');
+                    chgrp($thumbnailDir, 'nginx');
+                }
+                
+                generateThumbnail($destinationPath, $thumbnailPath);
+                error_log("Thumbnail generated successfully");
+                
+                // 获取文件类型，兼容不同环境
+                $fileType = '';
+                if (function_exists('mime_content_type')) {
+                    $fileType = mime_content_type($destinationPath);
+                } else {
+                    // 降级方案：根据文件扩展名猜测类型
+                    $mimeTypes = [
+                        'jpg' => 'image/jpeg',
+                        'jpeg' => 'image/jpeg',
+                        'png' => 'image/png',
+                        'gif' => 'image/gif',
+                        'webp' => 'image/webp',
+                        'bmp' => 'image/bmp'
+                    ];
+                    $fileType = $mimeTypes[strtolower($extension)] ?? 'image/jpeg';
+                }
+                error_log("File type: $fileType");
+                
+                // 准备照片信息
+                $photoInfo = [
+                    'user_id' => $userId,
+                    'album_id' => $albumId,
+                    'filename' => $filename,
+                    'original_name' => $originalName,
+                    'size' => filesize($destinationPath),
+                    'type' => $fileType,
+                    'url' => '/Photos/' . $userId . '/' . $filename,
+                    'thumbnail_url' => '/Photos/thumbnail/' . $userId . '/' . $thumbnailFilename,
+                    'is_favorite' => 0,
+                    'is_deleted' => 0,
+                    'taken_at' => $sourcePhoto['taken_at'] ?? null
+                ];
+                
+                // 保存到数据库
+                error_log("Saving to database...");
+                $stmt = $pdo->prepare("INSERT INTO photos (user_id, album_id, filename, original_name, size, type, url, thumbnail_url, is_favorite, is_deleted, taken_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                
+                $result = $stmt->execute([
+                    $photoInfo['user_id'],
+                    $photoInfo['album_id'],
+                    $photoInfo['filename'],
+                    $photoInfo['original_name'],
+                    $photoInfo['size'],
+                    $photoInfo['type'],
+                    $photoInfo['url'],
+                    $photoInfo['thumbnail_url'],
+                    $photoInfo['is_favorite'],
+                    $photoInfo['is_deleted'],
+                    $photoInfo['taken_at']
+                ]);
+                
+                if ($result) {
+                    $transferredCount++;
+                    error_log("Photo saved to database successfully");
+                } else {
+                    error_log("Failed to save photo to database");
+                    error_log("Database error: " . implode(", ", $stmt->errorInfo()));
+                }
+                
+            } catch (Exception $e) {
+                // 忽略单个文件的转存错误，继续处理其他文件
+                error_log('Error transferring photo: ' . $e->getMessage());
+                error_log('Stack trace: ' . $e->getTraceAsString());
+                continue;
+            }
+        }
+        
+        error_log("\n=== Photo Transfer End ===");
+        error_log("Transferred: $transferredCount/$totalCount photos");
+    
+    echo json_encode([
+        'status' => 'success',
+        'message' => '照片转存成功',
+        'transferred_count' => $transferredCount,
+        'total_count' => count($photosToTransfer)
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// 分享页面批量下载照片
+if (preg_match('/^\/api\/shares\/([a-zA-Z0-9]+)\/download$/', $path, $matches)) {
+    // 处理GET请求，直接返回错误
+    if ($method === 'GET') {
+        echo json_encode([
+            'status' => 'error',
+            'message' => '该接口只支持POST请求'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    $shareCode = $matches[1];
+    
+    // 获取分享信息
+    $stmt = $pdo->prepare("SELECT shares.* FROM shares WHERE shares.share_code = ?");
+    $stmt->execute([$shareCode]);
+    $share = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$share) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => '分享链接不存在或已失效'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // 检查分享是否过期
+    if ($share['expires_at'] && $share['expires_at'] < date('Y-m-d H:i:s')) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => '分享链接已过期'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // 获取请求中的照片ID列表
+    $photoIds = $requestBody['photo_ids'] ?? [];
+    
+    if (empty($photoIds)) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => '请选择要下载的照片'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // 获取照片信息
+    $placeholders = implode(',', array_fill(0, count($photoIds), '?'));
+    $stmt = $pdo->prepare("SELECT * FROM photos WHERE id IN ($placeholders) AND is_deleted = false");
+    $stmt->execute($photoIds);
+    $photos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    if (empty($photos)) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => '未找到要下载的照片'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // 检查ZipArchive是否可用
+    if (!class_exists('ZipArchive')) {
+        // 如果ZipArchive不可用，直接返回照片信息，让前端处理
+        echo json_encode([
+            'status' => 'success',
+            'message' => '照片信息获取成功',
+            'photos' => $photos
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // 创建临时目录用于存放ZIP文件
+    $tempDir = __DIR__ . '/../temp';
+    if (!file_exists($tempDir)) {
+        mkdir($tempDir, 0755, true);
+    }
+    
+    // 生成唯一的ZIP文件名
+    $zipFileName = 'shared_photos_' . date('YmdHis') . '_' . uniqid() . '.zip';
+    $zipFilePath = $tempDir . '/' . $zipFileName;
+    
+    // 创建ZIP文件
+    $zip = new ZipArchive();
+    if ($zip->open($zipFilePath, ZipArchive::CREATE) !== true) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => '无法创建ZIP文件'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // 添加照片到ZIP文件
+    foreach ($photos as $photo) {
+        $filePath = __DIR__ . '/../' . substr($photo['url'], 1);
+        if (file_exists($filePath)) {
+            // 使用原始文件名作为ZIP中的文件名
+            $zip->addFile($filePath, $photo['original_name']);
+        }
+    }
+    
+    // 关闭ZIP文件
+    $zip->close();
+    
+    // 检查ZIP文件是否创建成功
+    if (!file_exists($zipFilePath)) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'ZIP文件创建失败'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // 返回ZIP文件的下载链接
+    echo json_encode([
+        'status' => 'success',
+        'message' => '照片打包成功',
+        'download_url' => '/temp/' . $zipFileName
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 // 404处理
+http_response_code(404);
 echo json_encode([
     'status' => 'error',
     'message' => 'API endpoint not found',

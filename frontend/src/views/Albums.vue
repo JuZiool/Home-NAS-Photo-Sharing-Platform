@@ -62,9 +62,14 @@
           <p class="album-desc" @click="openAlbum(album)">{{ album.description || '无描述' }}</p>
           <div class="album-footer">
             <p class="album-date" @click="openAlbum(album)">{{ formatDate(album.created_at) }}</p>
-            <button class="delete-btn" @click.stop="deleteAlbum(album)">
-              <span>🗑️</span>
-            </button>
+            <div class="album-actions">
+              <button class="share-btn" @click.stop="handleShareAlbum(album)">
+                <span>🔗</span>
+              </button>
+              <button class="delete-btn" @click.stop="deleteAlbum(album)">
+                <span>🗑️</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -82,7 +87,13 @@
       <div class="album-modal-content" @click.stop>
         <div class="modal-header">
           <h2>{{ selectedAlbum.name }}</h2>
-          <button class="close-btn" @click="closeAlbum">×</button>
+          <div class="modal-actions">
+            <button class="share-btn" @click="handleShareAlbum(selectedAlbum)">
+              <span>🔗</span>
+              分享
+            </button>
+            <button class="close-btn" @click="closeAlbum">×</button>
+          </div>
         </div>
         <div class="modal-body">
           <div class="album-stats">
@@ -163,12 +174,34 @@
         </div>
       </div>
     </div>
+    
+    <!-- 分享对话框 -->
+    <div class="confirm-dialog-overlay" v-if="shareDialogVisible" @click="closeShareDialog">
+      <div class="confirm-dialog" @click.stop>
+        <h3 class="confirm-dialog-title">分享{{ shareType === 'photo' ? '照片' : '相册' }}</h3>
+        <div class="share-dialog-content">
+          <div class="form-group">
+            <label for="expiresAt">过期时间（可选）</label>
+            <input 
+              type="datetime-local" 
+              id="expiresAt" 
+              v-model="shareExpiresAt"
+              class="input-field"
+            >
+          </div>
+        </div>
+        <div class="confirm-dialog-buttons">
+          <button class="confirm-dialog-cancel" @click="closeShareDialog">取消</button>
+          <button class="confirm-dialog-confirm" @click="createShare">创建分享</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { albumsAPI } from '../services/api'
+import { albumsAPI, sharesAPI } from '../services/api'
 
 // 响应式数据
 const albums = ref([])
@@ -192,6 +225,12 @@ const confirmDialogTitle = ref('')
 const confirmDialogMessage = ref('')
 const confirmDialogAction = ref(null)
 const confirmDialogParams = ref(null)
+
+// 分享对话框相关数据
+const shareDialogVisible = ref(false)
+const shareType = ref('album') // 'photo' 或 'album'
+const shareItemId = ref(null) // 照片或相册ID
+const shareExpiresAt = ref(null) // 过期时间
 
 // 格式化日期
 const formatDate = (dateString) => {
@@ -335,6 +374,44 @@ const handleFileUpload = async (event) => {
   event.target.value = ''
 }
 
+// 处理分享相册 - 显示分享对话框
+const handleShareAlbum = (album) => {
+  shareType.value = 'album'
+  shareItemId.value = album.id
+  shareExpiresAt.value = null
+  shareDialogVisible.value = true
+}
+
+// 关闭分享对话框
+const closeShareDialog = () => {
+  shareDialogVisible.value = false
+  shareType.value = 'album'
+  shareItemId.value = null
+  shareExpiresAt.value = null
+}
+
+// 创建分享
+const createShare = async () => {
+  try {
+    const shareData = {
+      photo_id: shareType.value === 'photo' ? shareItemId.value : null,
+      album_id: shareType.value === 'album' ? shareItemId.value : null,
+      expires_at: shareExpiresAt.value
+    }
+    
+    const response = await sharesAPI.createShare(shareData)
+    
+    // 显示成功提示
+    alert(`分享创建成功！\n分享链接: ${window.location.origin}/shared/${response.share.share_code}`)
+    
+    // 关闭对话框
+    closeShareDialog()
+  } catch (err) {
+    console.error('创建分享失败:', err)
+    alert('创建分享失败，请稍后重试')
+  }
+}
+
 // 删除相册
 const deleteAlbum = async (album) => {
   // 使用自定义确认对话框
@@ -460,6 +537,7 @@ onMounted(() => {
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
@@ -475,6 +553,33 @@ onMounted(() => {
     justify-content: space-between;
     align-items: center;
     margin-top: 8px;
+}
+
+/* 相册操作按钮组 */
+.album-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* 分享按钮 */
+.share-btn {
+    background: none;
+    border: none;
+    color: #667eea;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    opacity: 0.7;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.share-btn:hover {
+    opacity: 1;
+    background-color: rgba(102, 126, 234, 0.1);
 }
 
 /* 删除按钮 */
@@ -495,13 +600,54 @@ onMounted(() => {
     background-color: rgba(255, 71, 87, 0.1);
 }
 
+/* 模态框操作按钮 */
+.modal-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.modal-actions .share-btn {
+    padding: 8px 16px;
+    background-color: rgba(102, 126, 234, 0.1);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    color: #667eea;
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 1;
+}
+
+.modal-actions .share-btn:hover {
+    background-color: rgba(102, 126, 234, 0.2);
+    border-color: rgba(102, 126, 234, 0.5);
+}
+
 /* 亮色主题适配 */
+:root.light-mode .share-btn {
+    color: #667eea;
+}
+
+:root.light-mode .share-btn:hover {
+    background-color: rgba(102, 126, 234, 0.1);
+}
+
 :root.light-mode .delete-btn {
     color: #dc3545;
 }
 
 :root.light-mode .delete-btn:hover {
     background-color: rgba(220, 53, 69, 0.1);
+}
+
+:root.light-mode .modal-actions .share-btn {
+    background-color: rgba(102, 126, 234, 0.05);
+    border-color: rgba(102, 126, 234, 0.2);
+    color: #667eea;
+}
+
+:root.light-mode .modal-actions .share-btn:hover {
+    background-color: rgba(102, 126, 234, 0.15);
+    border-color: rgba(102, 126, 234, 0.4);
 }
 
 /* 模态框 */

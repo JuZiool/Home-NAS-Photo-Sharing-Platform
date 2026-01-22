@@ -114,7 +114,7 @@ onMounted(() => {
 
 /* 左侧导航栏 */
 .sidebar {
-  width: 250px;
+  width: 120px;
   background-color: #1a1a1a;
   border-right: 1px solid #333333;
   display: flex;
@@ -126,29 +126,97 @@ onMounted(() => {
   height: 60px;
   display: flex;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 12px;
   border-bottom: 1px solid #333333;
 }
 
 .logo {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 20px;
+  gap: 6px;
+  font-size: 15px;
   font-weight: bold;
 }
 
 .logo-text {
   color: #ffffff;
+  font-size: 13px;
+  display: inline; /* 在较宽导航栏中显示文字 */
 }
 
-/* 亮色主题Logo样式 */
-.light-mode .logo-text {
+/* 亮色主题适配 */
+:root.light-mode .sidebar {
+  background-color: #ffffff;
+  border-right: 1px solid #e0e0e0;
+}
+
+:root.light-mode .logo-text {
   color: #000000;
 }
 
-.light-mode .logo {
+:root.light-mode .logo {
   color: #000000;
+}
+
+:root.light-mode .nav-item {
+  color: #666666;
+}
+
+:root.light-mode .nav-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #000000;
+}
+
+:root.light-mode .nav-item.active {
+  background-color: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+}
+
+:root.light-mode .section-title {
+  color: #999999;
+}
+
+:root.light-mode .top-bar {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+:root.light-mode .search-bar {
+  background-color: #f5f5f5;
+}
+
+:root.light-mode .search-icon {
+  color: #999999;
+}
+
+:root.light-mode .search-bar input {
+  color: #333333;
+}
+
+:root.light-mode .search-bar input::placeholder {
+  color: #999999;
+}
+
+:root.light-mode .action-button {
+  color: #666666;
+}
+
+:root.light-mode .action-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+:root.light-mode .user-avatar {
+  background-color: #f5f5f5;
+  color: #666666;
+}
+
+:root.light-mode .user-avatar:hover {
+  background-color: #e0e0e0;
+}
+
+:root.light-mode .content-area {
+  background-color: #fafafa;
+  color: #333333;
 }
 
 /* 导航菜单 */
@@ -162,23 +230,29 @@ onMounted(() => {
 }
 
 .section-title {
-  padding: 0 20px 10px;
-  font-size: 12px;
+  padding: 0 12px 10px;
+  font-size: 11px;
   font-weight: bold;
   color: #888888;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
+  text-align: left;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 20px;
+  gap: 8px;
+  padding: 12px 12px;
   color: #cccccc;
   text-decoration: none;
   transition: all 0.2s ease;
   border-left: 3px solid transparent;
+  justify-content: flex-start;
+}
+
+.nav-text {
+  font-size: 12px;
 }
 
 .nav-item:hover {
@@ -291,25 +365,39 @@ onMounted(() => {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
+  /* 隐藏滚动条但保持滚动功能 */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-gutter: auto;
 }
 
-/* 滚动条样式 */
+/* 隐藏滚动条样式 */
+.content-area::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* 禁用滚动条轨道和滑块显示 */
+.content-area::-webkit-scrollbar-track,
+.content-area::-webkit-scrollbar-thumb {
+  display: none !important;
+}
+
+/* 全局滚动条样式（用于其他可能需要滚动条的元素） */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 0 !important;
+  height: 0 !important;
 }
 
-::-webkit-scrollbar-track {
-  background: #1a1a1a;
-}
-
+::-webkit-scrollbar-track,
 ::-webkit-scrollbar-thumb {
-  background: #444444;
-  border-radius: 4px;
+  display: none !important;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #555555;
+/* Firefox全局滚动条隐藏 */
+* {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
 }
 
 /* 亮色主题样式 */

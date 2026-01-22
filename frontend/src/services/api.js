@@ -30,8 +30,12 @@ api.interceptors.response.use(
     return response.data
   },
   error => {
-    // 处理401未授权
-    if (error.response && error.response.status === 401) {
+    // 处理401未授权 - 仅在非登录请求时跳转
+    // 登录请求的URL包含'/auth/login'，我们不希望在登录失败时跳转
+    const isLoginRequest = error.config && error.config.url && 
+                         (error.config.url === '/auth/login' || 
+                          error.config.url.includes('/auth/login'))
+    if (error.response && error.response.status === 401 && !isLoginRequest) {
       // 清除token并跳转到登录页
       localStorage.removeItem('token')
       localStorage.removeItem('user')

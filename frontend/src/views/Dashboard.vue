@@ -32,6 +32,7 @@
       <div class="image-viewer" @click.stop>
         <!-- 删除和关闭按钮 -->
         <div class="viewer-controls">
+          <button class="share-btn" @click="handleSharePhoto">🔗</button>
           <button class="delete-btn" @click="handleDeletePhoto">🗑️</button>
           <button class="close-btn" @click="closeImageViewer">×</button>
         </div>
@@ -75,12 +76,34 @@
         </div>
       </div>
     </div>
+    
+    <!-- 分享对话框 -->
+    <div class="confirm-dialog-overlay" v-if="shareDialogVisible" @click="closeShareDialog">
+      <div class="confirm-dialog" @click.stop>
+        <h3 class="confirm-dialog-title">分享{{ shareType === 'photo' ? '照片' : '相册' }}</h3>
+        <div class="share-dialog-content">
+          <div class="form-group">
+            <label for="expiresAt">过期时间（可选）</label>
+            <input 
+              type="datetime-local" 
+              id="expiresAt" 
+              v-model="shareExpiresAt"
+              class="form-input"
+            >
+          </div>
+        </div>
+        <div class="confirm-dialog-buttons">
+          <button class="confirm-dialog-cancel" @click="closeShareDialog">取消</button>
+          <button class="confirm-dialog-confirm" @click="createShare">创建分享</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { photosAPI } from '../services/api'
+import { photosAPI, sharesAPI } from '../services/api'
 
 // 响应式数据
 const photos = ref([])
@@ -107,6 +130,12 @@ const confirmDialogTitle = ref('')
 const confirmDialogMessage = ref('')
 const confirmDialogAction = ref(null)
 const confirmDialogParams = ref(null)
+
+// 分享对话框相关数据
+const shareDialogVisible = ref(false)
+const shareType = ref('photo') // 'photo' 或 'album'
+const shareItemId = ref(null) // 照片或相册ID
+const shareExpiresAt = ref(null) // 过期时间
 
 // 格式化日期
 const formatDate = (dateString) => {
@@ -188,6 +217,16 @@ const closeImageViewer = () => {
   imageX.value = 0
   imageY.value = 0
   isDragging.value = false
+}
+
+// 处理分享照片 - 显示分享对话框
+const handleSharePhoto = () => {
+  if (!currentImage.value) return
+  
+  shareType.value = 'photo'
+  shareItemId.value = currentImage.value.id
+  shareExpiresAt.value = null
+  shareDialogVisible.value = true
 }
 
 // 处理删除照片 - 显示确认对话框
@@ -405,6 +444,36 @@ const showConfirmDialog = (title, message, action, params = {}) => {
   confirmDialogVisible.value = true
 }
 
+// 关闭分享对话框
+const closeShareDialog = () => {
+  shareDialogVisible.value = false
+  shareType.value = 'photo'
+  shareItemId.value = null
+  shareExpiresAt.value = null
+}
+
+// 创建分享
+const createShare = async () => {
+  try {
+    const shareData = {
+      photo_id: shareType.value === 'photo' ? shareItemId.value : null,
+      album_id: shareType.value === 'album' ? shareItemId.value : null,
+      expires_at: shareExpiresAt.value
+    }
+    
+    const response = await sharesAPI.createShare(shareData)
+    
+    // 显示成功提示
+    alert(`分享创建成功！\n分享链接: ${window.location.origin}/shared/${response.share.share_code}`)
+    
+    // 关闭对话框
+    closeShareDialog()
+  } catch (err) {
+    console.error('创建分享失败:', err)
+    alert('创建分享失败，请稍后重试')
+  }
+}
+
 // 处理确认对话框取消
 const handleConfirmDialogCancel = () => {
   confirmDialogVisible.value = false
@@ -593,6 +662,28 @@ const handleConfirmDialogConfirm = () => {
   z-index: 1001;
 }
 
+/* 分享按钮 */
+.share-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  opacity: 0.8;
+}
+
+.share-btn:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
 /* 删除按钮 */
 .delete-btn {
   background: none;
@@ -613,6 +704,57 @@ const handleConfirmDialogConfirm = () => {
 .delete-btn:hover {
   opacity: 1;
   transform: scale(1.1);
+}
+
+/* 分享对话框样式 */
+.share-dialog-content {
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #ffffff;
+  margin-bottom: 6px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #4a4a4a;
+  border-radius: 4px;
+  background-color: #1a1a1a;
+  color: #ffffff;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #667eea;
+  background-color: #2a2a2a;
+}
+
+/* 亮色主题适配 */
+:root.light-mode .form-group label {
+  color: #212529;
+}
+
+:root.light-mode .form-input {
+  border-color: #ced4da;
+  background-color: #ffffff;
+  color: #212529;
+}
+
+:root.light-mode .form-input:focus {
+  border-color: #667eea;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
 }
 
 /* 关闭按钮 */

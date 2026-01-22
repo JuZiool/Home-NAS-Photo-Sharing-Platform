@@ -1,5 +1,5 @@
 <template>
-  <div class="sharing">
+  <div class="shares-container">
     <h1>分享管理</h1>
     
     <!-- 分享列表 -->
@@ -131,11 +131,11 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.sharing {
+.shares-container {
   padding: 20px 0;
 }
 
-.sharing h1 {
+.shares-container h1 {
   font-size: 24px;
   font-weight: 600;
   margin-bottom: 30px;
@@ -285,7 +285,7 @@ onMounted(() => {
 }
 
 /* 亮色主题适配 */
-:root.light-mode .sharing h1 {
+:root.light-mode .shares-container h1 {
   color: #212529;
 }
 
