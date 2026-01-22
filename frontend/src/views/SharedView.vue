@@ -1357,7 +1357,7 @@ watch(isLoggedIn, (newValue) => {
 }
 
 .dialog-body {
-  padding: 20px;
+  padding: 20px 30px;
   max-height: 50vh;
   overflow-y: auto;
 }
@@ -1400,6 +1400,31 @@ watch(isLoggedIn, (newValue) => {
 .album-list {
   max-height: 300px;
   overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0;
+}
+
+/* 自定义滚动条样式 */
+.dialog-body::-webkit-scrollbar,
+.album-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dialog-body::-webkit-scrollbar-track,
+.album-list::-webkit-scrollbar-track {
+  background: #1a1a1a;
+  border-radius: 4px;
+}
+
+.dialog-body::-webkit-scrollbar-thumb,
+.album-list::-webkit-scrollbar-thumb {
+  background: #4a4a4a;
+  border-radius: 4px;
+}
+
+.dialog-body::-webkit-scrollbar-thumb:hover,
+.album-list::-webkit-scrollbar-thumb:hover {
+  background: #5a5a5a;
 }
 
 .album-item {
@@ -1413,6 +1438,8 @@ watch(isLoggedIn, (newValue) => {
   cursor: pointer;
   transition: all 0.2s ease;
   border: 1px solid transparent;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .album-item:hover {
@@ -1429,11 +1456,16 @@ watch(isLoggedIn, (newValue) => {
   font-size: 14px;
   font-weight: 500;
   color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 70%;
 }
 
 .album-count {
   font-size: 12px;
   color: #888888;
+  white-space: nowrap;
 }
 
 .album-item.selected .album-count {
@@ -1463,6 +1495,7 @@ watch(isLoggedIn, (newValue) => {
   padding: 16px;
   background-color: #2a2a2a;
   border-radius: 6px;
+  box-sizing: border-box;
 }
 
 .new-album-input {
@@ -1476,6 +1509,7 @@ watch(isLoggedIn, (newValue) => {
   font-size: 14px;
   outline: none;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .new-album-input:focus {
