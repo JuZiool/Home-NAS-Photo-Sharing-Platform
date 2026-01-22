@@ -142,7 +142,7 @@
             <div class="photos-grid">
               <div class="photo-thumb" v-for="photo in selectedAlbumPhotos" :key="photo.id">
                 <img 
-                :src="`/Photos/${photo.user_id}/${photo.filename}`" 
+                :src="photo.thumbnail_url || `/Photos/${photo.user_id}/${photo.filename}`" 
                 :alt="photo.original_name"
                 class="photo-image"
               >
@@ -721,6 +721,14 @@ onMounted(() => {
   padding: 20px;
   overflow-y: auto;
   flex: 1;
+  /* 隐藏滚动条但保持滚动功能 */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+/* Chrome, Safari and Opera */
+.modal-body::-webkit-scrollbar {
+  display: none;
 }
 
 .modal-footer {
