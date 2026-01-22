@@ -82,15 +82,7 @@
       <div class="confirm-dialog" @click.stop>
         <h3 class="confirm-dialog-title">分享{{ shareType === 'photo' ? '照片' : '相册' }}</h3>
         <div class="share-dialog-content">
-          <div class="form-group">
-            <label for="expiresAt">过期时间（可选）</label>
-            <input 
-              type="datetime-local" 
-              id="expiresAt" 
-              v-model="shareExpiresAt"
-              class="form-input"
-            >
-          </div>
+          <!-- 分享对话框内容 -->
         </div>
         <div class="confirm-dialog-buttons">
           <button class="confirm-dialog-cancel" @click="closeShareDialog">取消</button>
@@ -135,7 +127,6 @@ const confirmDialogParams = ref(null)
 const shareDialogVisible = ref(false)
 const shareType = ref('photo') // 'photo' 或 'album'
 const shareItemId = ref(null) // 照片或相册ID
-const shareExpiresAt = ref(null) // 过期时间
 
 // 格式化日期
 const formatDate = (dateString) => {
@@ -449,7 +440,6 @@ const closeShareDialog = () => {
   shareDialogVisible.value = false
   shareType.value = 'photo'
   shareItemId.value = null
-  shareExpiresAt.value = null
 }
 
 // 创建分享
@@ -457,8 +447,7 @@ const createShare = async () => {
   try {
     const shareData = {
       photo_id: shareType.value === 'photo' ? shareItemId.value : null,
-      album_id: shareType.value === 'album' ? shareItemId.value : null,
-      expires_at: shareExpiresAt.value
+      album_id: shareType.value === 'album' ? shareItemId.value : null
     }
     
     const response = await sharesAPI.createShare(shareData)
