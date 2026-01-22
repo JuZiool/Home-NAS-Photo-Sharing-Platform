@@ -153,7 +153,7 @@ onMounted(() => {
 .share-item {
   background-color: #2a2a2a;
   border-radius: 8px;
-  padding: 20px;
+  padding: 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -166,54 +166,54 @@ onMounted(() => {
 }
 
 .share-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: #ffffff;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .share-meta {
   display: flex;
-  gap: 16px;
-  margin-bottom: 12px;
-  font-size: 14px;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 12px;
   color: #888888;
 }
 
 .share-type {
   background-color: #4a4a4a;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 11px;
   font-weight: 500;
 }
 
 /* 分享码 */
 .share-code {
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .code-label {
-  font-size: 14px;
+  font-size: 12px;
   color: #888888;
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .code-container {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   background-color: #1a1a1a;
-  padding: 10px 12px;
-  border-radius: 6px;
+  padding: 6px 10px;
+  border-radius: 4px;
   overflow: hidden;
 }
 
 .code-container code {
   flex: 1;
   font-family: 'Consolas', 'Monaco', monospace;
-  font-size: 14px;
+  font-size: 12px;
   color: #ffffff;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -221,13 +221,13 @@ onMounted(() => {
 }
 
 .copy-btn {
-  padding: 6px 12px;
+  padding: 4px 8px;
   background-color: #4a4a4a;
   color: #ffffff;
   border: none;
-  border-radius: 4px;
+  border-radius: 3px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   transition: all 0.2s ease;
 }
 
@@ -238,17 +238,17 @@ onMounted(() => {
 /* 分享操作 */
 .share-actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
 }
 
 .delete-btn {
-  padding: 8px 16px;
+  padding: 6px 12px;
   background-color: #e53935;
   color: #ffffff;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 12px;
   transition: all 0.2s ease;
 }
 
