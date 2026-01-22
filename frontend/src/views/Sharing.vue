@@ -156,8 +156,10 @@ onMounted(() => {
   padding: 12px;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  max-width: 500px;
+  margin: 0 auto;
 }
 
 /* 分享信息 */
