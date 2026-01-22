@@ -146,8 +146,9 @@ onMounted(() => {
 .shares-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
+  gap: 25px 30px;
   align-items: start;
+  padding: 0 20px 0 0;
 }
 
 /* 分享项 */
