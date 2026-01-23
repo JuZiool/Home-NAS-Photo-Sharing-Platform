@@ -9,6 +9,15 @@
           <h3>{{ group.displayDate }}</h3>
           <div v-if="!group.isMonth" class="photos-grid">
             <div class="photo-card" v-for="photo in group.photos" :key="photo.id" @click="openImageViewer(photo)">
+              <!-- 收藏按钮 -->
+              <button 
+                class="favorite-btn"
+                :class="{ 'is-favorited': photo.is_favorite }"
+                @click.stop="toggleFavorite(photo)"
+              >
+                <span v-if="photo.is_favorite">❤️</span>
+                <span v-else>🤍</span>
+              </button>
               <img 
                 :src="photo.thumbnail_url || `/Photos/${photo.user_id}/${photo.filename}`" 
                 :alt="photo.original_name" 
@@ -32,6 +41,11 @@
       <div class="image-viewer" @click.stop>
         <!-- 删除和关闭按钮 -->
         <div class="viewer-controls">
+          <button class="favorite-btn-large" @click="toggleFavorite(currentImage)"
+            v-if="currentImage">
+            <span v-if="currentImage.is_favorite">❤️</span>
+            <span v-else>🤍</span>
+          </button>
           <button class="share-btn" @click="handleSharePhoto">🔗</button>
           <button class="delete-btn" @click="handleDeletePhoto">🗑️</button>
           <button class="close-btn" @click="closeImageViewer">×</button>
@@ -138,6 +152,21 @@ const formatDate = (dateString) => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+// 切换照片收藏状态
+const toggleFavorite = async (photo) => {
+  if (!photo) return
+  
+  try {
+    const response = await photosAPI.toggleFavorite(photo.id)
+    if (response.status === 'success') {
+      // 更新本地照片的收藏状态
+      photo.is_favorite = response.is_favorite
+    }
+  } catch (err) {
+    console.error('切换收藏状态失败:', err)
+  }
 }
 
 // 获取友好的日期显示
@@ -668,6 +697,63 @@ const handleConfirmDialogConfirm = () => {
 }
 
 .share-btn:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* 收藏按钮 */
+.favorite-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s ease;
+  z-index: 10;
+  opacity: 0;
+}
+
+/* 鼠标悬停时显示收藏按钮 */
+.photo-card:hover .favorite-btn {
+  opacity: 1;
+}
+
+/* 已收藏的照片始终显示收藏按钮 */
+.photo-card .favorite-btn.is-favorited {
+  opacity: 1;
+}
+
+.favorite-btn:hover {
+  transform: scale(1.1);
+  background: rgba(0, 0, 0, 0.7);
+}
+
+/* 查看器中的大收藏按钮 */
+.favorite-btn-large {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 28px;
+  cursor: pointer;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  opacity: 0.8;
+}
+
+.favorite-btn-large:hover {
   opacity: 1;
   transform: scale(1.1);
 }

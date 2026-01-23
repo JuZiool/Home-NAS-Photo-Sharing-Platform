@@ -772,8 +772,9 @@ if (strpos($path, '/api/photos') === 0) {
         
         // 更新回收站照片的URL为回收站目录
         foreach ($photos as &$photo) {
-            // 将/Photos/替换为/TheDeletePhotos/
+            // 将/Photos/替换为/TheDeletePhotos/（主照片URL）
             $photo['url'] = str_replace('/Photos/', '/TheDeletePhotos/', $photo['url']);
+            // 缩略图URL保持不变，因为缩略图没有被移动到回收站目录
         }
         
         echo json_encode([
@@ -869,6 +870,97 @@ if (strpos($path, '/api/photos') === 0) {
                 'message' => '照片删除失败'
             ], JSON_UNESCAPED_UNICODE);
         }
+        exit;
+    }
+    
+    // 切换照片收藏状态
+    if (preg_match('/^\/api\/photos\/([0-9]+)\/favorite$/', $path, $matches) && $method === 'PATCH') {
+        $photoId = $matches[1];
+        
+        // 获取照片信息
+        $stmt = $pdo->prepare("SELECT id, is_favorite FROM photos WHERE id = ? AND user_id = ? AND is_deleted = false");
+        $stmt->execute([$photoId, $userId]);
+        $photo = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$photo) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => '照片不存在或无权限访问'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
+        // 切换收藏状态
+        $newFavoriteStatus = $photo['is_favorite'] ? 0 : 1;
+        $stmt = $pdo->prepare("UPDATE photos SET is_favorite = ? WHERE id = ? AND user_id = ?");
+        
+        if ($stmt->execute([$newFavoriteStatus, $photoId, $userId])) {
+            echo json_encode([
+                'status' => 'success',
+                'message' => $newFavoriteStatus ? '照片已添加到收藏' : '照片已从收藏中移除',
+                'is_favorite' => $newFavoriteStatus
+            ], JSON_UNESCAPED_UNICODE);
+        } else {
+            echo json_encode([
+                'status' => 'error',
+                'message' => '收藏状态更新失败'
+            ], JSON_UNESCAPED_UNICODE);
+        }
+        exit;
+    }
+}
+
+// 收藏相关路由
+if (strpos($path, '/api/favorites') === 0) {
+    // 验证JWT token
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if (empty($authHeader) || substr($authHeader, 0, 7) !== 'Bearer ') {
+        http_response_code(401);
+        echo json_encode([
+            'status' => 'error',
+            'message' => '未授权'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    $token = substr($authHeader, 7);
+    $tokenParts = explode('.', $token);
+    $userId = null;
+    
+    if (count($tokenParts) === 3) {
+        $header = json_decode(base64_decode($tokenParts[0]), true);
+        $payload = json_decode(base64_decode($tokenParts[1]), true);
+        $signature = $tokenParts[2];
+        
+        // 验证token签名
+        $secretKey = 'your-secret-key-change-this-in-production';
+        $expectedSignature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode(hash_hmac('sha256', $tokenParts[0] . '.' . $tokenParts[1], $secretKey, true)));
+        
+        if ($signature === $expectedSignature) {
+            $userId = $payload['sub'] ?? null;
+        }
+    }
+    
+    if (!$userId) {
+        http_response_code(401);
+        echo json_encode([
+            'status' => 'error',
+            'message' => '无效的token',
+            'detail' => 'JWT token验证失败'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // 获取用户收藏的照片列表
+    if ($path === '/api/favorites' && $method === 'GET') {
+        $stmt = $pdo->prepare("SELECT * FROM photos WHERE user_id = ? AND is_favorite = true AND is_deleted = false ORDER BY created_at DESC");
+        $stmt->execute([$userId]);
+        $photos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        echo json_encode([
+            'status' => 'success',
+            'photos' => $photos
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
 }
