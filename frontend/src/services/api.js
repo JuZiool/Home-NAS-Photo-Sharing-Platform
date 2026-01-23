@@ -143,12 +143,24 @@ export const trashAPI = {
 
 // 管理员相关API
 export const adminAPI = {
+  // 获取统计数据
+  getStats: () => api.get('/admin/stats'),
   // 获取所有用户列表
   getUsers: () => api.get('/admin/users'),
   // 更新用户角色
   updateUserRole: (userId, isAdmin) => api.put(`/admin/users/${userId}/role`, { is_admin: isAdmin }),
+  // 修改用户密码
+  updateUserPassword: (userId, newPassword) => api.put(`/admin/users/${userId}/password`, { new_password: newPassword }),
   // 删除用户
-  deleteUser: (userId) => api.delete(`/admin/users/${userId}`)
+  deleteUser: (userId) => api.delete(`/admin/users/${userId}`),
+  // 获取所有相册
+  getAlbums: () => api.get('/admin/albums'),
+  // 获取相册详情
+  getAlbum: (albumId) => api.get(`/admin/albums/${albumId}`),
+  // 删除相册
+  deleteAlbum: (albumId) => api.delete(`/admin/albums/${albumId}`),
+  // 获取相册中的照片
+  getAlbumPhotos: (albumId) => api.get(`/admin/albums/${albumId}/photos`)
 }
 
 export default api

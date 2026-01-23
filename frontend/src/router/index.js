@@ -12,6 +12,7 @@ import SharedView from '../views/SharedView.vue'
 import AdminLayout from '../views/AdminLayout.vue'
 import AdminDashboard from '../views/admin/Dashboard.vue'
 import AdminUsers from '../views/admin/Users.vue'
+import AdminAlbums from '../views/admin/Albums.vue'
 
 const routes = [
   {
@@ -123,6 +124,11 @@ const routes = [
         path: 'users',
         name: 'AdminUsers',
         component: AdminUsers
+      },
+      {
+        path: 'albums',
+        name: 'AdminAlbums',
+        component: AdminAlbums
       }
     ]
   }

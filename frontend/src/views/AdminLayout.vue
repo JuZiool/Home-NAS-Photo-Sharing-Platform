@@ -25,15 +25,14 @@
           <span class="nav-icon">👥</span>
           <span class="nav-text">用户管理</span>
         </div>
-        <!-- 未来可以添加更多管理员功能 -->
-        <!-- <div 
+        <div 
           class="nav-item" 
-          :class="{ active: isActive('/admin/photos') }"
-          @click="navigateTo('/admin/photos')"
+          :class="{ active: isActive('/admin/albums') }"
+          @click="navigateTo('/admin/albums')"
         >
-          <span class="nav-icon">📸</span>
-          <span class="nav-text">照片管理</span>
-        </div> -->
+          <span class="nav-icon">🗂️</span>
+          <span class="nav-text">相册管理</span>
+        </div>
       </nav>
       <div class="sidebar-footer">
         <button class="logout-btn" @click="logout">
@@ -70,6 +69,7 @@ const currentPage = computed(() => {
   const route = router.currentRoute.value
   if (route.path === '/admin') return '仪表盘'
   if (route.path === '/admin/users') return '用户管理'
+  if (route.path === '/admin/albums') return '相册管理'
   return '管理员面板'
 })
 
@@ -112,7 +112,7 @@ onMounted(() => {
 
 /* 侧边栏样式 */
 .admin-sidebar {
-  width: 250px;
+  width: 200px;
   background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%);
   color: white;
   display: flex;
@@ -238,5 +238,13 @@ onMounted(() => {
   flex: 1;
   padding: 30px;
   overflow-y: auto;
+  /* 隐藏滚动条但保留滚动功能 */
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Chrome, Safari and Opera */
+.main-content::-webkit-scrollbar {
+  display: none;
 }
 </style>

@@ -408,7 +408,7 @@ if (strpos($path, '/api/auth') === 0) {
         
         // 插入用户
         $stmt = $pdo->prepare("INSERT INTO users (username, email, password, is_admin) VALUES (?, ?, ?, ?)");
-        if ($stmt->execute([$username, $email, $hashedPassword, false])) {
+        if ($stmt->execute([$username, $email, $hashedPassword, 0])) {
             $userId = $pdo->lastInsertId();
             $token = generateJWT($userId, $username, false);
             
@@ -992,6 +992,40 @@ if (strpos($path, '/api/admin') === 0) {
         exit;
     }
     
+    // 获取统计数据
+    if ($path === '/api/admin/stats' && $method === 'GET') {
+        // 获取注册用户数量
+        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM users");
+        $stmt->execute();
+        $userCount = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+        
+        // 获取照片数量
+        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM photos");
+        $stmt->execute();
+        $photoCount = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+        
+        // 获取相册数量
+        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM albums");
+        $stmt->execute();
+        $albumCount = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+        
+        // 获取管理员数量
+        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM users WHERE is_admin = 1");
+        $stmt->execute();
+        $adminCount = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+        
+        echo json_encode([
+            'status' => 'success',
+            'stats' => [
+                'userCount' => $userCount,
+                'photoCount' => $photoCount,
+                'albumCount' => $albumCount,
+                'adminCount' => $adminCount
+            ]
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
     // 获取所有用户列表
     if ($path === '/api/admin/users' && $method === 'GET') {
         $stmt = $pdo->prepare("SELECT id, username, email, is_admin, created_at, updated_at FROM users ORDER BY created_at DESC");
@@ -1100,6 +1134,168 @@ if (strpos($path, '/api/admin') === 0) {
             ], JSON_UNESCAPED_UNICODE);
         }
         
+        exit;
+    }
+    
+    // 修改用户密码
+    if (preg_match('/^\/api\/admin\/users\/([0-9]+)\/password$/', $path, $matches) && $method === 'PUT') {
+        $userId = $matches[1];
+        $newPassword = $requestBody['new_password'] ?? '';
+        
+        if (empty($newPassword)) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => '新密码不能为空'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
+        // 检查用户是否存在
+        $stmt = $pdo->prepare("SELECT id FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => '用户不存在'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
+        // 加密新密码
+        $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+        
+        // 更新密码
+        $stmt = $pdo->prepare("UPDATE users SET password = ? WHERE id = ?");
+        if ($stmt->execute([$hashedPassword, $userId])) {
+            echo json_encode([
+                'status' => 'success',
+                'message' => '密码修改成功'
+            ], JSON_UNESCAPED_UNICODE);
+        } else {
+            echo json_encode([
+                'status' => 'error',
+                'message' => '密码修改失败'
+            ], JSON_UNESCAPED_UNICODE);
+        }
+        exit;
+    }
+    
+    // 相册管理路由
+    // 获取所有相册
+    if ($path === '/api/admin/albums' && $method === 'GET') {
+        $stmt = $pdo->prepare("SELECT albums.*, users.username FROM albums LEFT JOIN users ON albums.user_id = users.id ORDER BY albums.created_at DESC");
+        $stmt->execute();
+        $albums = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        echo json_encode([
+            'status' => 'success',
+            'albums' => $albums
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // 获取特定相册详情
+    if (preg_match('/^\/api\/admin\/albums\/([0-9]+)$/', $path, $matches) && $method === 'GET') {
+        $albumId = $matches[1];
+        $stmt = $pdo->prepare("SELECT albums.*, users.username FROM albums LEFT JOIN users ON albums.user_id = users.id WHERE albums.id = ?");
+        $stmt->execute([$albumId]);
+        $album = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($album) {
+            echo json_encode([
+                'status' => 'success',
+                'album' => $album
+            ], JSON_UNESCAPED_UNICODE);
+        } else {
+            echo json_encode([
+                'status' => 'error',
+                'message' => '相册不存在'
+            ], JSON_UNESCAPED_UNICODE);
+        }
+        exit;
+    }
+    
+    // 删除相册
+    if (preg_match('/^\/api\/admin\/albums\/([0-9]+)$/', $path, $matches) && $method === 'DELETE') {
+        $albumId = $matches[1];
+        
+        // 开始事务
+        $pdo->beginTransaction();
+        
+        try {
+            // 1. 获取相册信息和所属用户
+            $stmt = $pdo->prepare("SELECT albums.*, photos.id as photo_id, photos.filename, photos.is_deleted FROM albums LEFT JOIN photos ON albums.id = photos.album_id WHERE albums.id = ?");
+            $stmt->execute([$albumId]);
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            if (empty($results)) {
+                throw new Exception('相册不存在');
+            }
+            
+            $album = $results[0];
+            $userId = $album['user_id'];
+            
+            // 2. 删除相册中的所有照片文件
+            foreach ($results as $result) {
+                if ($result['photo_id']) {
+                    $filename = $result['filename'];
+                    $isDeleted = $result['is_deleted'];
+                    
+                    if ($isDeleted) {
+                        // 从回收站删除
+                        $filePath = __DIR__ . '/../TheDeletePhotos/' . $userId . '/' . $filename;
+                    } else {
+                        // 从正常目录删除
+                        $filePath = __DIR__ . '/../Photos/' . $userId . '/' . $filename;
+                    }
+                    
+                    if (file_exists($filePath)) {
+                        unlink($filePath);
+                    }
+                    
+                    // 删除缩略图
+                    $thumbnailPath = __DIR__ . '/../Photos/thumbnail/' . $userId . '/' . $filename;
+                    if (file_exists($thumbnailPath)) {
+                        unlink($thumbnailPath);
+                    }
+                }
+            }
+            
+            // 3. 删除相册记录（级联删除会自动删除相册中的照片记录）
+            $stmt = $pdo->prepare("DELETE FROM albums WHERE id = ?");
+            $stmt->execute([$albumId]);
+            
+            // 提交事务
+            $pdo->commit();
+            
+            echo json_encode([
+                'status' => 'success',
+                'message' => '相册已成功删除'
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            // 回滚事务
+            $pdo->rollBack();
+            
+            echo json_encode([
+                'status' => 'error',
+                'message' => '相册删除失败: ' . $e->getMessage()
+            ], JSON_UNESCAPED_UNICODE);
+        }
+        
+        exit;
+    }
+    
+    // 获取相册中的照片
+    if (preg_match('/^\/api\/admin\/albums\/([0-9]+)\/photos$/', $path, $matches) && $method === 'GET') {
+        $albumId = $matches[1];
+        $stmt = $pdo->prepare("SELECT photos.*, users.username FROM photos LEFT JOIN users ON photos.user_id = users.id WHERE photos.album_id = ? ORDER BY photos.created_at DESC");
+        $stmt->execute([$albumId]);
+        $photos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        echo json_encode([
+            'status' => 'success',
+            'photos' => $photos
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
 }

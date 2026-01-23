@@ -38,6 +38,14 @@
                   </span>
                 </button>
                 <button 
+                  class="action-btn password-btn"
+                  @click="openChangePasswordModal(user)"
+                  :disabled="loadingUsers.includes(user.id)"
+                >
+                  <span v-if="loadingUsers.includes(user.id)">⏳</span>
+                  <span v-else>修改密码</span>
+                </button>
+                <button 
                   class="action-btn delete-btn" 
                   @click="confirmDelete(user)"
                   :disabled="loadingUsers.includes(user.id)"
@@ -83,6 +91,40 @@
         </div>
       </div>
     </div>
+
+    <!-- 修改密码对话框 -->
+    <div v-if="showChangePasswordModal" class="modal-overlay" @click="closeChangePasswordModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h4>修改密码</h4>
+          <button class="close-btn" @click="closeChangePasswordModal">×</button>
+        </div>
+        <div class="modal-body">
+          <p>为用户 <strong>{{ changePasswordUser?.username }}</strong> 设置新密码：</p>
+          <div class="password-input-group">
+            <label for="new-password">新密码</label>
+            <input 
+              type="password" 
+              id="new-password" 
+              v-model="newPassword" 
+              placeholder="请输入新密码" 
+              class="password-input"
+            >
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn cancel-btn" @click="closeChangePasswordModal">取消</button>
+          <button 
+            class="btn save-btn" 
+            @click="changePasswordConfirm"
+            :disabled="!newPassword || changingPassword"
+          >
+            <span v-if="changingPassword">⏳</span>
+            <span v-else>保存</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -98,6 +140,10 @@ const loadingUsers = ref([])
 const showDeleteConfirm = ref(false)
 const deleteUser = ref(null)
 const deletingUser = ref(false)
+const showChangePasswordModal = ref(false)
+const changePasswordUser = ref(null)
+const newPassword = ref('')
+const changingPassword = ref(false)
 
 // 格式化日期
 const formatDate = (dateString) => {
@@ -170,6 +216,39 @@ const deleteUserConfirm = async () => {
     alert('删除用户失败')
   } finally {
     deletingUser.value = false
+  }
+}
+
+// 打开修改密码模态框
+const openChangePasswordModal = (user) => {
+  changePasswordUser.value = user
+  showChangePasswordModal.value = true
+  newPassword.value = ''
+}
+
+// 关闭修改密码模态框
+const closeChangePasswordModal = () => {
+  showChangePasswordModal.value = false
+  changePasswordUser.value = null
+  newPassword.value = ''
+}
+
+// 修改密码确认
+const changePasswordConfirm = async () => {
+  if (!changePasswordUser.value || !newPassword.value) return
+  
+  changingPassword.value = true
+  try {
+    await adminAPI.updateUserPassword(changePasswordUser.value.id, newPassword.value)
+    showChangePasswordModal.value = false
+    changePasswordUser.value = null
+    newPassword.value = ''
+    alert('密码修改成功')
+  } catch (error) {
+    console.error('Failed to change password:', error)
+    alert('密码修改失败')
+  } finally {
+    changingPassword.value = false
   }
 }
 
@@ -277,6 +356,15 @@ onMounted(() => {
 
 .role-btn.remove-admin:hover:not(:disabled) {
   background: #fde68a;
+}
+
+.password-btn {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.password-btn:hover:not(:disabled) {
+  background: #bbf7d0;
 }
 
 .delete-btn {
@@ -387,6 +475,35 @@ onMounted(() => {
   font-weight: 500;
 }
 
+/* 密码输入组样式 */
+.password-input-group {
+  margin-top: 20px;
+}
+
+.password-input-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #374151;
+  font-size: 14px;
+}
+
+.password-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.password-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
 .modal-footer {
   display: flex;
   justify-content: flex-end;
@@ -415,6 +532,15 @@ onMounted(() => {
 
 .cancel-btn:hover {
   background: #e5e7eb;
+}
+
+.save-btn {
+  background: #3b82f6;
+  color: white;
+}
+
+.save-btn:hover:not(:disabled) {
+  background: #2563eb;
 }
 
 .modal-footer .delete-btn {

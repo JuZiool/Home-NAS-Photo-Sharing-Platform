@@ -52,6 +52,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { adminAPI } from '@/services/api'
 
 const userCount = ref(0)
 const photoCount = ref(0)
@@ -64,15 +65,20 @@ const recentActivities = ref([
   { icon: '👑', text: '管理员 admin 登录系统', time: '3小时前' }
 ])
 
-// 获取统计数据（当前为模拟数据，未来可替换为真实API调用）
-const fetchStats = () => {
-  // 模拟API调用延迟
-  setTimeout(() => {
-    userCount.value = 128
-    photoCount.value = 2560
-    albumCount.value = 156
-    adminCount.value = 3
-  }, 500)
+// 获取统计数据
+const fetchStats = async () => {
+  try {
+    const response = await adminAPI.getStats()
+    if (response.status === 'success') {
+      const stats = response.stats
+      userCount.value = stats.userCount
+      photoCount.value = stats.photoCount
+      albumCount.value = stats.albumCount
+      adminCount.value = stats.adminCount
+    }
+  } catch (error) {
+    console.error('获取统计数据失败:', error)
+  }
 }
 
 onMounted(() => {
