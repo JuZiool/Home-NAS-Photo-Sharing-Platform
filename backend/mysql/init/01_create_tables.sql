@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(50) NOT NULL UNIQUE,
     email VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
+    is_admin BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -62,16 +63,10 @@ CREATE INDEX idx_albums_user_id ON albums(user_id);
 CREATE INDEX idx_shares_share_code ON shares(share_code);
 CREATE INDEX idx_shares_expires_at ON shares(expires_at);
 
--- 创建测试用户
-INSERT INTO users (username, email, password) VALUES (
-    'testuser',
-    'test@example.com',
-    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi' -- 密码: password
+-- 创建管理员用户
+INSERT INTO users (username, email, password, is_admin) VALUES (
+    'admin',
+    'admin@example.com',
+    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- 密码: password
+    TRUE
 ) ON DUPLICATE KEY UPDATE username = username;
-
--- 创建测试相册
-INSERT INTO albums (user_id, name, description) VALUES (
-    (SELECT id FROM users WHERE username = 'testuser'),
-    '默认相册',
-    '系统默认相册'
-) ON DUPLICATE KEY UPDATE name = name;

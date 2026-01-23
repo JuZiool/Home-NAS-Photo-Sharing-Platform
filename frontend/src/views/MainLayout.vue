@@ -52,7 +52,7 @@
           <button class="action-button" @click="toggleTheme">
             <span>{{ isDarkMode ? '🌓' : '🌞' }}</span>
           </button>
-          <button class="action-button">
+          <button class="action-button" @click="goToSettings">
             <span>⚙️</span>
           </button>
           <div class="user-avatar" @click="goToProfile">
@@ -89,6 +89,22 @@ const toggleTheme = () => {
 // 跳转到个人中心
 const goToProfile = () => {
   router.push('/profile')
+}
+
+// 跳转到设置/管理页面
+const goToSettings = () => {
+  // 从localStorage或sessionStorage获取用户信息
+  const userStr = localStorage.getItem('user') || sessionStorage.getItem('user')
+  const user = userStr ? JSON.parse(userStr) : null
+  
+  // 如果是管理员，跳转到管理页面
+  if (user && user.is_admin) {
+    router.push('/admin')
+  } else {
+    // 否则可以跳转到普通用户设置页面（如果有的话）
+    // 目前没有普通用户设置页面，所以暂时不做任何操作
+    console.log('普通用户设置页面待实现')
+  }
 }
 
 // 初始化主题

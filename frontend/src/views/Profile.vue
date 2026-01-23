@@ -182,9 +182,15 @@ const logout = async () => {
   } catch (err) {
     console.error('退出登录失败:', err)
   } finally {
-    // 清除本地存储的token和用户信息
+    // 清除本地存储的token和用户信息，实现真正的退出登录
+    // 保留loginCredentials，以便记住登录功能继续工作
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    localStorage.removeItem('rememberMe')
+    sessionStorage.removeItem('token')
+    sessionStorage.removeItem('user')
+    sessionStorage.removeItem('rememberMe')
+    
     // 跳转到登录页
     router.push('/login')
   }

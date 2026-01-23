@@ -34,11 +34,12 @@ try {
 }
 
 // 简单的JWT生成函数
-function generateJWT($user_id, $username) {
+function generateJWT($user_id, $username, $is_admin = false) {
     $secretKey = 'your-secret-key-change-this-in-production';
     $payload = [
         'sub' => $user_id,
         'name' => $username,
+        'is_admin' => $is_admin,
         'iat' => time(),
         'exp' => time() + 3600 * 24 // 24小时过期
     ];
@@ -54,6 +55,72 @@ function generateJWT($user_id, $username) {
     $base64UrlSignature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($signature));
     
     return $base64UrlHeader . '.' . $base64UrlPayload . '.' . $base64UrlSignature;
+}
+
+// 验证JWT token的函数
+function verifyJWT($authHeader) {
+    if (empty($authHeader) || substr($authHeader, 0, 7) !== 'Bearer ') {
+        return [
+            'valid' => false,
+            'message' => '未授权'
+        ];
+    }
+    
+    $token = substr($authHeader, 7);
+    $tokenParts = explode('.', $token);
+    
+    if (count($tokenParts) !== 3) {
+        return [
+            'valid' => false,
+            'message' => '无效的token格式'
+        ];
+    }
+    
+    $header = json_decode(base64_decode($tokenParts[0]), true);
+    $payload = json_decode(base64_decode($tokenParts[1]), true);
+    $signature = $tokenParts[2];
+    
+    // 验证token签名
+    $secretKey = 'your-secret-key-change-this-in-production';
+    $expectedSignature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode(hash_hmac('sha256', $tokenParts[0] . '.' . $tokenParts[1], $secretKey, true)));
+    
+    if ($signature !== $expectedSignature) {
+        return [
+            'valid' => false,
+            'message' => '无效的token签名'
+        ];
+    }
+    
+    // 验证token是否过期
+    if (isset($payload['exp']) && time() > $payload['exp']) {
+        return [
+            'valid' => false,
+            'message' => 'token已过期'
+        ];
+    }
+    
+    return [
+        'valid' => true,
+        'payload' => $payload
+    ];
+}
+
+// 管理员认证中间件
+function checkAdmin($authHeader) {
+    $jwtResult = verifyJWT($authHeader);
+    
+    if (!$jwtResult['valid']) {
+        return $jwtResult;
+    }
+    
+    if (!isset($jwtResult['payload']['is_admin']) || !$jwtResult['payload']['is_admin']) {
+        return [
+            'valid' => false,
+            'message' => '需要管理员权限'
+        ];
+    }
+    
+    return $jwtResult;
 }
 
 // 提取照片拍摄日期的函数
@@ -260,7 +327,7 @@ if (strpos($path, '/api/auth') === 0) {
         }
         
         // 查询用户
-        $stmt = $pdo->prepare("SELECT id, username, email, password FROM users WHERE username = ?");
+        $stmt = $pdo->prepare("SELECT id, username, email, password, is_admin FROM users WHERE username = ?");
         $stmt->execute([$username]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         
@@ -284,7 +351,7 @@ if (strpos($path, '/api/auth') === 0) {
         }
         
         // 生成JWT
-        $token = generateJWT($user['id'], $user['username']);
+        $token = generateJWT($user['id'], $user['username'], $user['is_admin']);
         
         // 返回响应
         echo json_encode([
@@ -293,7 +360,8 @@ if (strpos($path, '/api/auth') === 0) {
             'user' => [
                 'id' => $user['id'],
                 'username' => $user['username'],
-                'email' => $user['email']
+                'email' => $user['email'],
+                'is_admin' => $user['is_admin']
             ]
         ], JSON_UNESCAPED_UNICODE);
         exit;
@@ -339,10 +407,10 @@ if (strpos($path, '/api/auth') === 0) {
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
         
         // 插入用户
-        $stmt = $pdo->prepare("INSERT INTO users (username, email, password) VALUES (?, ?, ?)");
-        if ($stmt->execute([$username, $email, $hashedPassword])) {
+        $stmt = $pdo->prepare("INSERT INTO users (username, email, password, is_admin) VALUES (?, ?, ?, ?)");
+        if ($stmt->execute([$username, $email, $hashedPassword, false])) {
             $userId = $pdo->lastInsertId();
-            $token = generateJWT($userId, $username);
+            $token = generateJWT($userId, $username, false);
             
             echo json_encode([
                 'status' => 'success',
@@ -350,7 +418,8 @@ if (strpos($path, '/api/auth') === 0) {
                 'user' => [
                     'id' => $userId,
                     'username' => $username,
-                    'email' => $email
+                    'email' => $email,
+                    'is_admin' => false
                 ]
             ], JSON_UNESCAPED_UNICODE);
         } else {
@@ -391,7 +460,7 @@ if (strpos($path, '/api/auth') === 0) {
             
             if ($username) {
                 // 根据用户名查询用户信息
-                $stmt = $pdo->prepare("SELECT id, username, email, created_at FROM users WHERE username = ?");
+                $stmt = $pdo->prepare("SELECT id, username, email, is_admin, created_at FROM users WHERE username = ?");
                 $stmt->execute([$username]);
                 $user = $stmt->fetch(PDO::FETCH_ASSOC);
                 
@@ -906,6 +975,131 @@ if (strpos($path, '/api/photos') === 0) {
                 'message' => '收藏状态更新失败'
             ], JSON_UNESCAPED_UNICODE);
         }
+        exit;
+    }
+}
+
+// 管理员用户管理路由
+if (strpos($path, '/api/admin') === 0) {
+    // 验证管理员权限
+    $adminResult = checkAdmin($_SERVER['HTTP_AUTHORIZATION'] ?? '');
+    if (!$adminResult['valid']) {
+        http_response_code(401);
+        echo json_encode([
+            'status' => 'error',
+            'message' => $adminResult['message']
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // 获取所有用户列表
+    if ($path === '/api/admin/users' && $method === 'GET') {
+        $stmt = $pdo->prepare("SELECT id, username, email, is_admin, created_at, updated_at FROM users ORDER BY created_at DESC");
+        $stmt->execute();
+        $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        echo json_encode([
+            'status' => 'success',
+            'users' => $users
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    // 更新用户角色（设置/取消管理员）
+    if (preg_match('/^\/api\/admin\/users\/([0-9]+)\/role$/', $path, $matches) && $method === 'PUT') {
+        $userId = $matches[1];
+        $isAdmin = $requestBody['is_admin'] ?? false;
+        
+        // 更新用户角色
+        $stmt = $pdo->prepare("UPDATE users SET is_admin = ? WHERE id = ?");
+        if ($stmt->execute([$isAdmin, $userId])) {
+            echo json_encode([
+                'status' => 'success',
+                'message' => '用户角色已更新',
+                'is_admin' => $isAdmin
+            ], JSON_UNESCAPED_UNICODE);
+        } else {
+            echo json_encode([
+                'status' => 'error',
+                'message' => '用户角色更新失败'
+            ], JSON_UNESCAPED_UNICODE);
+        }
+        exit;
+    }
+    
+    // 删除用户
+    if (preg_match('/^\/api\/admin\/users\/([0-9]+)$/', $path, $matches) && $method === 'DELETE') {
+        $userId = $matches[1];
+        
+        // 开始事务
+        $pdo->beginTransaction();
+        
+        try {
+            // 删除用户的所有照片文件
+            // 1. 获取用户的所有照片
+            $stmt = $pdo->prepare("SELECT filename, is_deleted FROM photos WHERE user_id = ?");
+            $stmt->execute([$userId]);
+            $photos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // 2. 删除照片文件
+            foreach ($photos as $photo) {
+                if ($photo['is_deleted']) {
+                    // 从回收站删除
+                    $filePath = __DIR__ . '/../TheDeletePhotos/' . $userId . '/' . $photo['filename'];
+                } else {
+                    // 从正常目录删除
+                    $filePath = __DIR__ . '/../Photos/' . $userId . '/' . $photo['filename'];
+                }
+                
+                if (file_exists($filePath)) {
+                    unlink($filePath);
+                }
+                
+                // 删除缩略图
+                $thumbnailPath = __DIR__ . '/../Photos/thumbnail/' . $userId . '/' . $photo['filename'];
+                if (file_exists($thumbnailPath)) {
+                    unlink($thumbnailPath);
+                }
+            }
+            
+            // 3. 删除用户的目录
+            $userPhotosDir = __DIR__ . '/../Photos/' . $userId;
+            $userThumbnailDir = __DIR__ . '/../Photos/thumbnail/' . $userId;
+            $userDeleteDir = __DIR__ . '/../TheDeletePhotos/' . $userId;
+            
+            if (is_dir($userPhotosDir)) {
+                rmdir($userPhotosDir);
+            }
+            
+            if (is_dir($userThumbnailDir)) {
+                rmdir($userThumbnailDir);
+            }
+            
+            if (is_dir($userDeleteDir)) {
+                rmdir($userDeleteDir);
+            }
+            
+            // 4. 删除用户记录（级联删除会自动删除相册和照片）
+            $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
+            $stmt->execute([$userId]);
+            
+            // 提交事务
+            $pdo->commit();
+            
+            echo json_encode([
+                'status' => 'success',
+                'message' => '用户已成功删除'
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            // 回滚事务
+            $pdo->rollBack();
+            
+            echo json_encode([
+                'status' => 'error',
+                'message' => '用户删除失败: ' . $e->getMessage()
+            ], JSON_UNESCAPED_UNICODE);
+        }
+        
         exit;
     }
 }

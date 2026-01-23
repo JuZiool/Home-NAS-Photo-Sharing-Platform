@@ -12,8 +12,8 @@ const api = axios.create({
 // 请求拦截器
 api.interceptors.request.use(
   config => {
-    // 从localStorage获取token
-    const token = localStorage.getItem('token')
+    // 从localStorage或sessionStorage获取token
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -39,6 +39,10 @@ api.interceptors.response.use(
       // 清除token并跳转到登录页
       localStorage.removeItem('token')
       localStorage.removeItem('user')
+      localStorage.removeItem('rememberMe')
+      sessionStorage.removeItem('token')
+      sessionStorage.removeItem('user')
+      sessionStorage.removeItem('rememberMe')
       window.location.href = '/login'
     }
     return Promise.reject(error)
@@ -54,7 +58,10 @@ export const authAPI = {
   // 获取当前用户信息
   getCurrentUser: () => api.get('/auth/me'),
   // 用户退出
-  logout: () => api.post('/auth/logout'),
+  logout: () => {
+    // 不清除登录状态，只调用后端退出接口
+    return api.post('/auth/logout')
+  },
   // 修改密码
   changePassword: (passwordData) => api.put('/auth/password', passwordData)
 }
@@ -132,6 +139,16 @@ export const trashAPI = {
   restorePhoto: (id) => api.post(`/trash/${id}/restore`),
   // 永久删除照片
   permanentlyDeletePhoto: (id) => api.delete(`/trash/${id}`)
+}
+
+// 管理员相关API
+export const adminAPI = {
+  // 获取所有用户列表
+  getUsers: () => api.get('/admin/users'),
+  // 更新用户角色
+  updateUserRole: (userId, isAdmin) => api.put(`/admin/users/${userId}/role`, { is_admin: isAdmin }),
+  // 删除用户
+  deleteUser: (userId) => api.delete(`/admin/users/${userId}`)
 }
 
 export default api

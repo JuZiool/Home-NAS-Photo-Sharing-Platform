@@ -53,7 +53,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { authAPI } from '../services/api'
 
@@ -63,6 +63,22 @@ const password = ref('')
 const remember = ref(false)
 const error = ref('')
 const loading = ref(false)
+
+// 组件挂载时，检查是否保存了用户名和密码
+onMounted(() => {
+  const savedCredentials = localStorage.getItem('loginCredentials')
+  if (savedCredentials) {
+    try {
+      const credentials = JSON.parse(savedCredentials)
+      username.value = credentials.username || ''
+      password.value = credentials.password || ''
+      remember.value = true
+    } catch (e) {
+      console.error('Failed to parse saved credentials:', e)
+      localStorage.removeItem('loginCredentials')
+    }
+  }
+})
 
 const login = async () => {
   if (!username.value || !password.value) {
@@ -81,8 +97,21 @@ const login = async () => {
 
     // 保存token和用户信息
     if (response.token) {
-      localStorage.setItem('token', response.token)
-      localStorage.setItem('user', JSON.stringify(response.user))
+      const storage = remember.value ? localStorage : sessionStorage
+      storage.setItem('token', response.token)
+      storage.setItem('user', JSON.stringify(response.user))
+      storage.setItem('rememberMe', remember.value)
+      
+      // 如果勾选了记住登录，保存用户名和密码到localStorage
+      if (remember.value) {
+        localStorage.setItem('loginCredentials', JSON.stringify({
+          username: username.value,
+          password: password.value
+        }))
+      } else {
+        // 如果没有勾选，清除保存的用户名和密码
+        localStorage.removeItem('loginCredentials')
+      }
       
       // 跳转到仪表盘
       router.push('/dashboard')
