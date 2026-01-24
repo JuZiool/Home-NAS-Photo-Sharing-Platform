@@ -300,7 +300,7 @@ onMounted(() => {
   position: absolute;
   top: 8px;
   right: 8px;
-  background: rgba(0, 0, 0, 0.5);
+  background: none;
   border: none;
   border-radius: 50%;
   width: 28px;
@@ -327,7 +327,7 @@ onMounted(() => {
 
 .favorite-btn:hover {
   transform: scale(1.1);
-  background: rgba(0, 0, 0, 0.7);
+  background: none;
 }
 
 /* 图片查看器样式 */

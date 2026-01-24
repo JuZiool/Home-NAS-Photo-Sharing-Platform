@@ -335,12 +335,17 @@ const handleFileUpload = async (event) => {
     await albumsAPI.uploadPhotosToAlbum(selectedAlbum.value.id, formData, onUploadProgress)
     
     // 上传成功
-    uploadStatus.value = 'success'
-    uploadMessage.value = `成功上传 ${files.length} 张照片`
-    
-    // 刷新相册照片列表
-    const response = await albumsAPI.getAlbumPhotos(selectedAlbum.value.id)
-    selectedAlbumPhotos.value = response.photos || []
+      uploadStatus.value = 'success'
+      uploadMessage.value = `成功上传 ${files.length} 张照片`
+      
+      // 刷新相册照片列表
+      const response = await albumsAPI.getAlbumPhotos(selectedAlbum.value.id)
+      selectedAlbumPhotos.value = response.photos || []
+      
+      // 更新相册照片数量
+      if (selectedAlbum.value) {
+        selectedAlbum.value.photo_count = selectedAlbumPhotos.value.length
+      }
     
     // 3秒后重置上传状态
     setTimeout(() => {

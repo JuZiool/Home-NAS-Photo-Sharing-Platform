@@ -151,6 +151,8 @@ export const adminAPI = {
   updateUserRole: (userId, isAdmin) => api.put(`/admin/users/${userId}/role`, { is_admin: isAdmin }),
   // 修改用户密码
   updateUserPassword: (userId, newPassword) => api.put(`/admin/users/${userId}/password`, { new_password: newPassword }),
+  // 获取最近活动记录
+  getActivityLogs: () => api.get('/admin/activity'),
   // 删除用户
   deleteUser: (userId) => api.delete(`/admin/users/${userId}`),
   // 获取所有相册

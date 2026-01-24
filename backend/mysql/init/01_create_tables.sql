@@ -55,6 +55,26 @@ CREATE TABLE IF NOT EXISTS shares (
     FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 创建活动日志表
+CREATE TABLE IF NOT EXISTS activity_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    action_type VARCHAR(50) NOT NULL,
+    action_description TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 创建登录日志表
+CREATE TABLE IF NOT EXISTS login_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    ip_address VARCHAR(45) NOT NULL,
+    user_agent VARCHAR(255),
+    login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- 创建索引
 CREATE INDEX idx_photos_user_id ON photos(user_id);
 CREATE INDEX idx_photos_album_id ON photos(album_id);
@@ -62,6 +82,8 @@ CREATE INDEX idx_photos_is_deleted ON photos(is_deleted);
 CREATE INDEX idx_albums_user_id ON albums(user_id);
 CREATE INDEX idx_shares_share_code ON shares(share_code);
 CREATE INDEX idx_shares_expires_at ON shares(expires_at);
+CREATE INDEX idx_activity_logs_created_at ON activity_logs(created_at);
+CREATE INDEX idx_login_logs_login_time ON login_logs(login_time);
 
 -- 创建管理员用户
 INSERT INTO users (username, email, password, is_admin) VALUES (

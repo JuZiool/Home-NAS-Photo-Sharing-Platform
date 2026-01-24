@@ -76,12 +76,27 @@ const shareUrl = (code) => {
 const copyShareUrl = async (code) => {
   const url = shareUrl(code)
   try {
-    await navigator.clipboard.writeText(url)
-    copiedCode.value = code
-    // 3秒后重置复制状态
-    setTimeout(() => {
-      copiedCode.value = ''
-    }, 3000)
+    // 检查Clipboard API是否可用
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(url)
+      copiedCode.value = code
+      // 3秒后重置复制状态
+      setTimeout(() => {
+        copiedCode.value = ''
+      }, 3000)
+    } else {
+      // 降级方案：使用输入框复制
+      const textArea = document.createElement('textarea')
+      textArea.value = url
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      copiedCode.value = code
+      setTimeout(() => {
+        copiedCode.value = ''
+      }, 3000)
+    }
   } catch (err) {
     console.error('复制失败:', err)
     // 降级方案：使用输入框复制

@@ -35,11 +35,11 @@
     <div class="recent-activity">
       <h3>最近活动</h3>
       <div class="activity-list">
-        <div class="activity-item" v-for="(activity, index) in recentActivities" :key="index">
-          <div class="activity-icon">{{ activity.icon }}</div>
+        <div class="activity-item" v-for="activity in recentActivities" :key="activity.id">
+          <div class="activity-icon">{{ getActivityIcon(activity.action_type) }}</div>
           <div class="activity-content">
-            <div class="activity-text">{{ activity.text }}</div>
-            <div class="activity-time">{{ activity.time }}</div>
+            <div class="activity-text">{{ activity.action_description }}</div>
+            <div class="activity-time">{{ formatTime(activity.created_at) }}</div>
           </div>
         </div>
         <div v-if="recentActivities.length === 0" class="no-activity">
@@ -58,12 +58,7 @@ const userCount = ref(0)
 const photoCount = ref(0)
 const albumCount = ref(0)
 const adminCount = ref(0)
-const recentActivities = ref([
-  { icon: '📝', text: '新用户 testuser 注册', time: '5分钟前' },
-  { icon: '📸', text: '用户 testuser 上传了10张照片', time: '1小时前' },
-  { icon: '🗂️', text: '用户 testuser 创建了相册 "旅行回忆"', time: '2小时前' },
-  { icon: '👑', text: '管理员 admin 登录系统', time: '3小时前' }
-])
+const recentActivities = ref([])
 
 // 获取统计数据
 const fetchStats = async () => {
@@ -81,8 +76,53 @@ const fetchStats = async () => {
   }
 }
 
+// 获取最近活动记录
+const fetchRecentActivities = async () => {
+  try {
+    const response = await adminAPI.getActivityLogs()
+    if (response.status === 'success') {
+      recentActivities.value = response.activities || []
+    }
+  } catch (error) {
+    console.error('获取最近活动失败:', error)
+  }
+}
+
+// 根据活动类型获取图标
+const getActivityIcon = (actionType) => {
+  const iconMap = {
+    'login': '👑',
+    'register': '📝',
+    'upload_photo': '📸',
+    'create_album': '🗂️',
+    'update_album': '✏️',
+    'delete_album': '🗑️',
+    'update_user': '👥',
+    'delete_user': '❌'
+  }
+  return iconMap[actionType] || '🔔'
+}
+
+// 格式化时间显示
+const formatTime = (timeString) => {
+  const now = new Date()
+  const activityTime = new Date(timeString)
+  const diffInSeconds = Math.floor((now - activityTime) / 1000)
+  
+  if (diffInSeconds < 60) {
+    return `${diffInSeconds}秒前`
+  } else if (diffInSeconds < 3600) {
+    return `${Math.floor(diffInSeconds / 60)}分钟前`
+  } else if (diffInSeconds < 86400) {
+    return `${Math.floor(diffInSeconds / 3600)}小时前`
+  } else {
+    return `${Math.floor(diffInSeconds / 86400)}天前`
+  }
+}
+
 onMounted(() => {
   fetchStats()
+  fetchRecentActivities()
 })
 </script>
 

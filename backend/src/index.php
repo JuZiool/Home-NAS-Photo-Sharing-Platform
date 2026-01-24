@@ -25,6 +25,47 @@ try {
         $dbConfig['password'],
         [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
     );
+    
+    // 创建活动日志表（如果不存在）
+    $pdo->exec("CREATE TABLE IF NOT EXISTS activity_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        action_type VARCHAR(50) NOT NULL,
+        action_description TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+    
+    // 创建登录日志表（如果不存在）
+    $pdo->exec("CREATE TABLE IF NOT EXISTS login_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        ip_address VARCHAR(45) NOT NULL,
+        user_agent VARCHAR(255),
+        login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+    
+    // 创建索引（如果不存在）
+    try {
+        // 尝试创建索引，如果已存在会失败但不会中断程序
+        $pdo->exec("CREATE INDEX idx_activity_logs_created_at ON activity_logs(created_at)");
+    } catch (PDOException $e) {
+        // 忽略索引已存在的错误
+        if (strpos($e->getMessage(), 'Duplicate key') === false && strpos($e->getMessage(), 'already exists') === false) {
+            error_log("Failed to create activity logs index: " . $e->getMessage());
+        }
+    }
+    
+    try {
+        $pdo->exec("CREATE INDEX idx_login_logs_login_time ON login_logs(login_time)");
+    } catch (PDOException $e) {
+        // 忽略索引已存在的错误
+        if (strpos($e->getMessage(), 'Duplicate key') === false && strpos($e->getMessage(), 'already exists') === false) {
+            error_log("Failed to create login logs index: " . $e->getMessage());
+        }
+    }
+    
 } catch (PDOException $e) {
     echo json_encode([
         'status' => 'error',
@@ -352,6 +393,31 @@ if (strpos($path, '/api/auth') === 0) {
         
         // 生成JWT
         $token = generateJWT($user['id'], $user['username'], $user['is_admin']);
+        
+        // 记录登录日志
+        $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
+        
+        try {
+            $stmt = $pdo->prepare("INSERT INTO login_logs (user_id, ip_address, user_agent) VALUES (?, ?, ?)");
+            $stmt->execute([$user['id'], $ipAddress, $userAgent]);
+        } catch (PDOException $e) {
+            // 登录日志记录失败不影响登录流程
+            error_log("Failed to record login log: " . $e->getMessage());
+        }
+        
+        // 记录活动日志
+        try {
+            $actionDescription = $user['is_admin'] ? 
+                "管理员 '{$user['username']}' 登录系统" : 
+                "用户 '{$user['username']}' 登录系统";
+            
+            $stmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action_type, action_description) VALUES (?, ?, ?)");
+            $stmt->execute([$user['id'], 'login', $actionDescription]);
+        } catch (PDOException $e) {
+            // 活动日志记录失败不影响登录流程
+            error_log("Failed to record activity log: " . $e->getMessage());
+        }
         
         // 返回响应
         echo json_encode([
@@ -731,6 +797,18 @@ if (strpos($path, '/api/photos') === 0) {
         ])) {
             $photoId = $pdo->lastInsertId();
             $photoInfo['id'] = $photoId;
+            
+            // 记录照片上传活动日志
+            try {
+                $stmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action_type, action_description) VALUES (?, ?, ?)");
+                $stmt->execute([
+                    $userId, 
+                    'upload_photo', 
+                    "用户上传了照片 '{$photoInfo['original_name']}'"
+                ]);
+            } catch (PDOException $e) {
+                error_log("Failed to record photo upload log: " . $e->getMessage());
+            }
             
             echo json_encode([
                 'status' => 'success',
@@ -1180,6 +1258,20 @@ if (strpos($path, '/api/admin') === 0) {
         exit;
     }
     
+    // 获取最近活动记录
+    if ($path === '/api/admin/activity' && $method === 'GET') {
+        // 获取最近10条活动记录
+        $stmt = $pdo->prepare("SELECT activity_logs.*, users.username FROM activity_logs LEFT JOIN users ON activity_logs.user_id = users.id ORDER BY activity_logs.created_at DESC LIMIT 10");
+        $stmt->execute();
+        $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        echo json_encode([
+            'status' => 'success',
+            'activities' => $activities
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
     // 相册管理路由
     // 获取所有相册
     if ($path === '/api/admin/albums' && $method === 'GET') {
@@ -1423,6 +1515,18 @@ if (strpos($path, '/api/albums') === 0) {
         $stmt = $pdo->prepare("INSERT INTO albums (user_id, name, description) VALUES (?, ?, ?)");
         if ($stmt->execute([$userId, $name, $description])) {
             $albumId = $pdo->lastInsertId();
+            
+            // 记录相册创建活动日志
+            try {
+                $stmt = $pdo->prepare("INSERT INTO activity_logs (user_id, action_type, action_description) VALUES (?, ?, ?)");
+                $stmt->execute([
+                    $userId, 
+                    'create_album', 
+                    "用户创建了相册 '{$name}'"
+                ]);
+            } catch (PDOException $e) {
+                error_log("Failed to record album creation log: " . $e->getMessage());
+            }
             
             echo json_encode([
                 'status' => 'success',
