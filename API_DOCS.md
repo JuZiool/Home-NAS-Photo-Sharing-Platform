@@ -663,7 +663,236 @@ curl -X POST http://localhost:3333/api/photos \
 4. 照片上传大小限制为 50MB
 5. JWT Token 有效期为 24 小时
 
+## 5. 管理员相关 API
+
+### 5.1 获取统计数据
+
+```
+GET /api/admin/stats
+```
+
+**功能**: 获取系统统计数据
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**响应示例**:
+```json
+{
+  "status": "success",
+  "stats": {
+    "userCount": 10,
+    "photoCount": 100,
+    "albumCount": 15,
+    "adminCount": 2
+  }
+}
+```
+
+### 5.2 获取所有用户列表
+
+```
+GET /api/admin/users
+```
+
+**功能**: 获取所有用户的列表
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**响应示例**:
+```json
+{
+  "status": "success",
+  "users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "email": "admin@example.com",
+      "is_admin": 1,
+      "created_at": "2026-01-21 07:37:13",
+      "updated_at": "2026-01-21 07:37:13"
+    }
+  ]
+}
+```
+
+### 5.3 修改用户角色
+
+```
+PUT /api/admin/users/{user_id}/role
+```
+
+**功能**: 设置或取消用户的管理员角色
+
+**请求头**:
+```
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+**路径参数**:
+- `user_id`: 用户 ID
+
+**请求参数**:
+```json
+{
+  "is_admin": 1
+}
+```
+
+**响应示例**:
+```json
+{
+  "status": "success",
+  "message": "用户角色已更新",
+  "is_admin": 1
+}
+```
+
+### 5.4 修改用户密码
+
+```
+PUT /api/admin/users/{user_id}/password
+```
+
+**功能**: 管理员修改指定用户的密码
+
+**请求头**:
+```
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+**路径参数**:
+- `user_id`: 用户 ID
+
+**请求参数**:
+```json
+{
+  "new_password": "newpassword123"
+}
+```
+
+**响应示例**:
+```json
+{
+  "status": "success",
+  "message": "密码修改成功"
+}
+```
+
+### 5.5 删除用户
+
+```
+DELETE /api/admin/users/{user_id}
+```
+
+**功能**: 删除指定用户及其所有数据
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**路径参数**:
+- `user_id`: 用户 ID
+
+**响应示例**:
+```json
+{
+  "status": "success",
+  "message": "用户已成功删除"
+}
+```
+
+### 5.6 获取最近活动记录
+
+```
+GET /api/admin/activity
+```
+
+**功能**: 获取系统最近的活动记录
+
+**请求头**:
+```
+Authorization: Bearer <token>
+```
+
+**响应示例**:
+```json
+{
+  "status": "success",
+  "activities": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "action_type": "login",
+      "action_description": "管理员 'admin' 登录系统",
+      "created_at": "2026-01-24 19:39:28",
+      "username": "admin"
+    }
+  ]
+}
+```
+
+## 6. 响应状态码
+
+| 状态码 | 描述 |
+| ---- | ---- |
+| 200 | 请求成功 |
+| 400 | 请求参数错误 |
+| 401 | 未授权，无效的 Token |
+| 403 | 禁止访问 |
+| 404 | API 端点不存在 |
+| 500 | 服务器内部错误 |
+
+## 7. 错误响应格式
+
+```json
+{
+  "status": "error",
+  "message": "错误描述",
+  "detail": "可选的详细错误信息"
+}
+```
+
+## 8. 示例请求
+
+### 8.1 使用 curl 发送请求
+
+```bash
+# 获取 Token
+curl -X POST http://localhost:3333/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","password":"password"}'
+
+# 使用 Token 访问受保护的 API
+curl -X GET http://localhost:3333/api/photos \
+  -H "Authorization: Bearer <token>"
+
+# 上传照片
+curl -X POST http://localhost:3333/api/photos \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@/path/to/photo.jpg"
+```
+
 ## 9. 更新日志
+
+### v1.1.0 (2026-01-24)
+- 新增管理员功能：
+  - 实现了管理员修改用户密码功能
+  - 添加了系统最近活动记录和显示功能
+  - 增强了用户管理功能
+- 优化用户体验：
+  - 修复了照片上传后数量不自动更新的问题
+  - 移除了爱心按钮的黑色背景，优化视觉效果
+  - 修复了复制按钮控制台错误，增强兼容性
+  - 调整了相册和分享功能的UI显示
 
 ### v1.0.0 (2026-01-21)
 - 初始版本
