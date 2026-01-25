@@ -2151,15 +2151,8 @@ if (strpos($path, '/api/albums') === 0) {
             // 对每张照片进行AI分类
             $processedCount = 0;
             $skippedCount = 0;
-            $maxPhotosPerBatch = 10; // 限制每次处理的照片数量，避免超时
-            $processedInBatch = 0;
             
             foreach ($photos as $photo) {
-                // 限制每次处理的照片数量
-                if ($processedInBatch >= $maxPhotosPerBatch) {
-                    break;
-                }
-                
                 $photoId = $photo['id'];
                 
                 // 检查照片是否已经进行过AI识别，除非force=true
@@ -2200,7 +2193,6 @@ if (strpos($path, '/api/albums') === 0) {
                         }
                         
                         $processedCount++;
-                        $processedInBatch++;
                     }
                 }
             }

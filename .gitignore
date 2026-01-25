@@ -24,8 +24,7 @@ Thumbs.db
 node_modules/
 vendor/
 
-# 配置文件
-config.php
+# 配置文件（保留模板，不提交真实密钥）
 backend/src/config.php
 
 # 构建输出
