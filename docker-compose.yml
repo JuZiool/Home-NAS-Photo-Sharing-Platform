@@ -73,7 +73,7 @@ services:
     restart: unless-stopped
     # 健康检查
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/api/auth/login"]
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
       timeout: 10s
       retries: 5
       interval: 30s
