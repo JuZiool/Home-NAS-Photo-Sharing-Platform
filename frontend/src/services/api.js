@@ -3,7 +3,7 @@ import axios from 'axios'
 // 创建axios实例
 const api = axios.create({
   baseURL: '/api',
-  timeout: 10000,
+  timeout: 120000, // 增加超时时间到120秒，适应批量AI处理
   headers: {
     'Content-Type': 'application/json'
   }
@@ -110,7 +110,9 @@ export const albumsAPI = {
       'Content-Type': 'multipart/form-data'
     },
     onUploadProgress
-  })
+  }),
+  // AI分类相册
+  aiClassifyAlbum: (id, data = {}) => api.post(`/albums/${id}/ai-classify`, data)
 }
 
 // 分享相关API
@@ -139,6 +141,14 @@ export const trashAPI = {
   restorePhoto: (id) => api.post(`/trash/${id}/restore`),
   // 永久删除照片
   permanentlyDeletePhoto: (id) => api.delete(`/trash/${id}`)
+}
+
+// 标签相关API
+export const tagsAPI = {
+  // 获取标签列表
+  getTags: () => api.get('/tags'),
+  // 根据标签获取照片
+  getPhotosByTag: (tagId) => api.get(`/photos/tag/${tagId}`)
 }
 
 // 管理员相关API

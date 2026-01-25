@@ -2,10 +2,16 @@
   <div class="albums">
     <div class="page-header">
       <h1>相册</h1>
-      <button class="create-album-btn" @click="showCreateModal = true">
-        <span>📁</span>
-        创建相册
-      </button>
+      <div class="header-buttons">
+        <button class="force-ai-btn" @click="handleForceAIClassifyAll">
+          <span>🤖</span>
+          强制AI识别
+        </button>
+        <button class="create-album-btn" @click="showCreateModal = true">
+          <span>📁</span>
+          创建相册
+        </button>
+      </div>
     </div>
 
     <!-- 创建相册模态框 -->
@@ -63,6 +69,9 @@
           <div class="album-footer">
             <p class="album-date" @click="openAlbum(album)">{{ formatDate(album.created_at) }}</p>
             <div class="album-actions">
+              <button class="ai-btn" @click.stop="handleAIClassify(album)">
+                <span>🤖</span>
+              </button>
               <button class="share-btn" @click.stop="handleShareAlbum(album)">
                 <span>🔗</span>
               </button>
@@ -405,6 +414,27 @@ const createShare = async () => {
   }
 }
 
+// AI分类相册
+const handleAIClassify = async (album) => {
+  // 使用自定义确认对话框
+  showConfirmDialog(
+    'AI分类',
+    `确定要对相册 "${album.name}" 中的照片进行AI内容分类吗？`,
+    async () => {
+      try {
+        await albumsAPI.aiClassifyAlbum(album.id)
+        // 分类成功后提示用户
+        alert(`相册 "${album.name}" 的AI分类已完成！`)
+        // 重新获取相册列表
+        fetchAlbums()
+      } catch (err) {
+        console.error('AI分类失败:', err)
+        alert(`AI分类失败: ${err.message || '请稍后重试'}`)
+      }
+    }
+  )
+}
+
 // 删除相册
 const deleteAlbum = async (album) => {
   // 使用自定义确认对话框
@@ -418,6 +448,30 @@ const deleteAlbum = async (album) => {
         fetchAlbums()
       } catch (err) {
         console.error('删除相册失败:', err)
+      }
+    }
+  )
+}
+
+// 强制AI识别所有相册
+const handleForceAIClassifyAll = async () => {
+  // 使用自定义确认对话框
+  showConfirmDialog(
+    '强制AI识别',
+    '确定要对所有相册中的照片进行强制AI内容分类吗？此操作将重新识别所有照片，包括已识别过的照片。',
+    async () => {
+      try {
+        // 循环遍历所有相册，对每个相册进行强制AI识别
+        for (const album of albums.value) {
+          await albumsAPI.aiClassifyAlbum(album.id, { force: true })
+        }
+        // 分类成功后提示用户
+        alert('所有相册的强制AI分类已完成！')
+        // 重新获取相册列表
+        fetchAlbums()
+      } catch (err) {
+        console.error('强制AI分类失败:', err)
+        alert(`强制AI分类失败: ${err.message || '请稍后重试'}`)
       }
     }
   )
@@ -446,6 +500,34 @@ onMounted(() => {
   font-size: 24px;
   font-weight: 600;
   margin: 0;
+}
+
+/* 头部按钮容器 */
+.header-buttons {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* 强制AI识别按钮 */
+.force-ai-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.force-ai-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
 }
 
 /* 创建相册按钮 */
@@ -552,6 +634,27 @@ onMounted(() => {
 .album-actions {
     display: flex;
     gap: 8px;
+}
+
+/* AI分类按钮 */
+.ai-btn {
+    background: none;
+    border: none;
+    color: #4ade80;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    opacity: 0.7;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ai-btn:hover {
+    opacity: 1;
+    background-color: rgba(74, 222, 128, 0.1);
 }
 
 /* 分享按钮 */

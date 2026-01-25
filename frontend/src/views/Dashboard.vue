@@ -8,7 +8,12 @@
         <div v-for="group in groupedPhotos" :key="group.key" :class="['date-section', { 'is-month': group.isMonth }]">
           <h3>{{ group.displayDate }}</h3>
           <div v-if="!group.isMonth" class="photos-grid">
-            <div class="photo-card" v-for="photo in group.photos" :key="photo.id" @click="openImageViewer(photo)">
+            <div 
+              class="photo-card" 
+              v-for="photo in group.photos" 
+              :key="photo.id" 
+              @click="openImageViewer(photo)"
+            >
               <!-- 收藏按钮 -->
               <button 
                 class="favorite-btn"
@@ -109,7 +114,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { photosAPI, sharesAPI } from '../services/api'
+import { photosAPI, sharesAPI, albumsAPI } from '../services/api'
 
 // 响应式数据
 const photos = ref([])
@@ -129,6 +134,8 @@ const startX = ref(0)
 const startY = ref(0)
 const imageX = ref(0)
 const imageY = ref(0)
+
+
 
 // 确认对话框相关数据
 const confirmDialogVisible = ref(false)

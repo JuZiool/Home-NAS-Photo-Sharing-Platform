@@ -7,6 +7,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+// 加载配置文件
+$config = null;
+$configPath = __DIR__ . '/config.php';
+error_log("Config path: $configPath");
+if (file_exists($configPath)) {
+    error_log("Config file exists");
+    $config = require_once $configPath;
+    error_log("Config content: " . json_encode($config));
+} else {
+    error_log("Config file not exists");
+}
+
 // 数据库连接配置
 $dbConfig = [
     'host' => 'mysql',
@@ -18,6 +30,14 @@ $dbConfig = [
 
 // 初始化数据库连接
 $pdo = null;
+
+// 百度AI服务实例
+$baiduAIService = null;
+// 检查是否配置了百度AI
+if ($config && isset($config['baidu_ai']) && !empty($config['baidu_ai']['api_key'])) {
+    require_once __DIR__ . '/services/BaiduAIService.php';
+    $baiduAIService = new BaiduAIService($config['baidu_ai']);
+}
 try {
     $pdo = new PDO(
         "mysql:host={$dbConfig['host']};port={$dbConfig['port']};dbname={$dbConfig['dbname']};charset=utf8mb4",
@@ -781,7 +801,8 @@ if (strpos($path, '/api/photos') === 0) {
         ];
         
         // 保存到数据库
-        $stmt = $pdo->prepare("INSERT INTO photos (user_id, album_id, filename, original_name, size, type, url, thumbnail_url, is_favorite, is_deleted, taken_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        // 准备SQL语句，添加has_content_tags字段
+        $stmt = $pdo->prepare("INSERT INTO photos (user_id, album_id, filename, original_name, size, type, url, thumbnail_url, is_favorite, is_deleted, taken_at, has_content_tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         if ($stmt->execute([
             $photoInfo['user_id'],
             $photoInfo['album_id'],
@@ -793,10 +814,15 @@ if (strpos($path, '/api/photos') === 0) {
             $photoInfo['thumbnail_url'],
             $photoInfo['is_favorite'],
             $photoInfo['is_deleted'],
-            $photoInfo['taken_at']
+            $photoInfo['taken_at'],
+            0 // 默认没有内容标签
         ])) {
             $photoId = $pdo->lastInsertId();
             $photoInfo['id'] = $photoId;
+            $photoInfo['has_content_tags'] = 0;
+            
+            // 移除自动AI识别，改为手动触发
+            // AI识别功能现已通过手动触发实现，不再在上传时自动进行
             
             // 记录照片上传活动日志
             try {
@@ -999,9 +1025,14 @@ if (strpos($path, '/api/photos') === 0) {
         // 从回收站目录中删除文件
         $userDeleteDir = __DIR__ . '/../TheDeletePhotos/' . $userId;
         $filePath = $userDeleteDir . '/' . $photo['filename'];
-        
         if (file_exists($filePath)) {
             unlink($filePath);
+        }
+        
+        // 删除缩略图
+        $thumbnailPath = __DIR__ . '/../Photos/thumbnail/' . $userId . '/' . $photo['filename'];
+        if (file_exists($thumbnailPath)) {
+            unlink($thumbnailPath);
         }
         
         // 从数据库中删除照片记录
@@ -1055,6 +1086,80 @@ if (strpos($path, '/api/photos') === 0) {
         }
         exit;
     }
+}
+
+// 标签相关路由
+
+// 获取照片标签列表
+if ($path === '/api/tags' && $method === 'GET') {
+    $stmt = $pdo->query("SELECT pt.id, pt.name, COUNT(pt.id) as count FROM photo_tags pt 
+                         JOIN photo_tag_relations ptr ON pt.id = ptr.tag_id 
+                         JOIN photos p ON p.id = ptr.photo_id 
+                         WHERE p.is_deleted = false 
+                         GROUP BY pt.id, pt.name ORDER BY count DESC");
+    $tags = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    echo json_encode([
+        'status' => 'success',
+        'tags' => $tags
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// 根据标签获取照片
+if (preg_match('#^/api/photos/tag/([0-9]+)$#', $path, $matches) && $method === 'GET') {
+    // 验证JWT token
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if (empty($authHeader) || substr($authHeader, 0, 7) !== 'Bearer ') {
+        http_response_code(401);
+        echo json_encode([
+            'status' => 'error',
+            'message' => '未授权'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    $token = substr($authHeader, 7);
+    $tokenParts = explode('.', $token);
+    $userId = null;
+    
+    if (count($tokenParts) === 3) {
+        $header = json_decode(base64_decode($tokenParts[0]), true);
+        $payload = json_decode(base64_decode($tokenParts[1]), true);
+        $signature = $tokenParts[2];
+        
+        // 验证token签名
+        $secretKey = 'your-secret-key-change-this-in-production';
+        $expectedSignature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode(hash_hmac('sha256', $tokenParts[0] . '.' . $tokenParts[1], $secretKey, true)));
+        
+        if ($signature === $expectedSignature) {
+            $userId = $payload['sub'] ?? null;
+        }
+    }
+    
+    if (!$userId) {
+        http_response_code(401);
+        echo json_encode([
+            'status' => 'error',
+            'message' => '无效的token',
+            'detail' => 'JWT token验证失败'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    $tagId = $matches[1];
+    
+    $stmt = $pdo->prepare("SELECT p.* FROM photos p 
+                         JOIN photo_tag_relations ptr ON p.id = ptr.photo_id 
+                         WHERE ptr.tag_id = ? AND p.user_id = ? AND p.is_deleted = false");
+    $stmt->execute([$tagId, $userId]);
+    $photos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    echo json_encode([
+        'status' => 'success',
+        'photos' => $photos
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
 }
 
 // 管理员用户管理路由
@@ -1714,8 +1819,8 @@ if (strpos($path, '/api/albums') === 0) {
                     'taken_at' => $taken_at
                 ];
                 
-                // 保存到数据库
-                $stmt = $pdo->prepare("INSERT INTO photos (user_id, album_id, filename, original_name, size, type, url, thumbnail_url, is_favorite, is_deleted, taken_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                // 保存到数据库，添加has_content_tags字段
+                $stmt = $pdo->prepare("INSERT INTO photos (user_id, album_id, filename, original_name, size, type, url, thumbnail_url, is_favorite, is_deleted, taken_at, has_content_tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                 if ($stmt->execute([
                     $photoInfo['user_id'],
                     $photoInfo['album_id'],
@@ -1727,13 +1832,18 @@ if (strpos($path, '/api/albums') === 0) {
                     $photoInfo['thumbnail_url'],
                     $photoInfo['is_favorite'],
                     $photoInfo['is_deleted'],
-                    $photoInfo['taken_at']
+                    $photoInfo['taken_at'],
+                    0 // 默认没有内容标签
                 ])) {
                     $photoId = $pdo->lastInsertId();
                     $photoInfo['id'] = $photoId;
                     $photoInfo['created_at'] = date('Y-m-d H:i:s');
                     $photoInfo['updated_at'] = date('Y-m-d H:i:s');
                     $photoInfo['taken_at'] = $taken_at;
+                    $photoInfo['has_content_tags'] = 0;
+                    
+                    // 移除自动AI识别，改为手动触发
+                        // AI识别功能现已通过手动触发实现，不再在上传时自动进行
                     
                     $uploadedPhotos[] = $photoInfo;
                 } else {
@@ -1825,8 +1935,8 @@ if (strpos($path, '/api/albums') === 0) {
                         'taken_at' => $taken_at
                     ];
                     
-                    // 保存到数据库
-                    $stmt = $pdo->prepare("INSERT INTO photos (user_id, album_id, filename, original_name, size, type, url, thumbnail_url, is_favorite, is_deleted, taken_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    // 保存到数据库，添加has_content_tags字段
+                    $stmt = $pdo->prepare("INSERT INTO photos (user_id, album_id, filename, original_name, size, type, url, thumbnail_url, is_favorite, is_deleted, taken_at, has_content_tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                     if ($stmt->execute([
                         $photoInfo['user_id'],
                         $photoInfo['album_id'],
@@ -1838,13 +1948,53 @@ if (strpos($path, '/api/albums') === 0) {
                         $photoInfo['thumbnail_url'],
                         $photoInfo['is_favorite'],
                         $photoInfo['is_deleted'],
-                        $photoInfo['taken_at']
+                        $photoInfo['taken_at'],
+                        0 // 默认没有内容标签
                     ])) {
                         $photoId = $pdo->lastInsertId();
                         $photoInfo['id'] = $photoId;
                         $photoInfo['created_at'] = date('Y-m-d H:i:s');
                         $photoInfo['updated_at'] = date('Y-m-d H:i:s');
                         $photoInfo['taken_at'] = $taken_at;
+                        $photoInfo['has_content_tags'] = 0;
+                        
+                        // 取消上传时自动AI识别，改为用户手动触发
+                        // if ($baiduAIService) {
+                        //     $tagsResult = $baiduAIService->imageClassify($destination);
+                        //     if (!empty($tagsResult)) {
+                        //         // 更新has_content_tags字段
+                        //         $stmt = $pdo->prepare("UPDATE photos SET has_content_tags = 1 WHERE id = ?");
+                        //         $stmt->execute([$photoId]);
+                        //         $photoInfo['has_content_tags'] = 1;
+                        //         
+                        //         // 保存标签到数据库（去重处理）
+                        //         $addedTags = [];
+                        //         foreach ($tagsResult as $tagData) {
+                        //             $tagName = $tagData['keyword'];
+                        //             
+                        //             // 跳过已处理的相同标签
+                        //             if (in_array($tagName, $addedTags)) {
+                        //                 continue;
+                        //             }
+                        //             $addedTags[] = $tagName;
+                        //             
+                        //             // 插入标签
+                        //             $stmt = $pdo->prepare("INSERT IGNORE INTO photo_tags (name) VALUES (?)");
+                        //             $stmt->execute([$tagName]);
+                        //             
+                        //             // 获取标签ID
+                        //             $stmt = $pdo->prepare("SELECT id FROM photo_tags WHERE name = ?");
+                        //             $stmt->execute([$tagName]);
+                        //             $tagId = $stmt->fetchColumn();
+                        //             
+                        //             // 关联照片和标签（使用IGNORE避免重复键错误）
+                        //             if ($tagId) {
+                        //                 $stmt = $pdo->prepare("INSERT IGNORE INTO photo_tag_relations (photo_id, tag_id) VALUES (?, ?)");
+                        //                 $stmt->execute([$photoId, $tagId]);
+                        //             }
+                        //         }
+                        //     }
+                        // }
                         
                         $uploadedPhotos[] = $photoInfo;
                     } else {
@@ -1901,11 +2051,18 @@ if (strpos($path, '/api/albums') === 0) {
         $stmt->execute([$albumId, $userId]);
         $photos = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // 删除照片文件
+        // 删除照片文件和缩略图
         foreach ($photos as $photo) {
+            // 删除原始照片
             $filePath = __DIR__ . '/../' . substr($photo['url'], 1);
             if (file_exists($filePath)) {
                 unlink($filePath);
+            }
+            
+            // 删除缩略图
+            $thumbnailPath = __DIR__ . '/../Photos/thumbnail/' . $userId . '/' . $photo['filename'];
+            if (file_exists($thumbnailPath)) {
+                unlink($thumbnailPath);
             }
         }
         
@@ -1935,6 +2092,127 @@ if (strpos($path, '/api/albums') === 0) {
             echo json_encode([
                 'status' => 'error',
                 'message' => '相册删除失败: ' . $e->getMessage()
+            ], JSON_UNESCAPED_UNICODE);
+        }
+        
+        exit;
+    }
+    
+    // AI分类相册
+    if (preg_match('/^\/api\/albums\/([0-9]+)\/ai-classify$/', $path, $matches) && $method === 'POST') {
+        $albumId = $matches[1];
+        
+        // 获取请求参数，支持force参数
+        $force = isset($requestBody['force']) && $requestBody['force'] === true;
+        
+        // 检查相册是否属于当前用户
+        $stmt = $pdo->prepare("SELECT id FROM albums WHERE id = ? AND user_id = ?");
+        $stmt->execute([$albumId, $userId]);
+        if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => '相册不存在或无权限访问'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
+        try {
+            // 获取相册中的所有照片
+            $stmt = $pdo->prepare("SELECT * FROM photos WHERE album_id = ? AND user_id = ?");
+            $stmt->execute([$albumId, $userId]);
+            $photos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            if (empty($photos)) {
+                echo json_encode([
+                    'status' => 'success',
+                    'message' => '相册中没有照片需要分类'
+                ], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+            
+            // 初始化百度AI服务
+            $baiduAIService = null;
+            try {
+                require_once __DIR__ . '/services/BaiduAIService.php';
+                $config = include __DIR__ . '/config.php';
+                $baiduAIService = new BaiduAIService($config['baidu_ai']);
+            } catch (Exception $e) {
+                error_log('Failed to initialize Baidu AI Service: ' . $e->getMessage());
+            }
+            
+            if (!$baiduAIService) {
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => '百度AI服务初始化失败'
+                ], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+            
+            // 对每张照片进行AI分类
+            $processedCount = 0;
+            $skippedCount = 0;
+            $maxPhotosPerBatch = 10; // 限制每次处理的照片数量，避免超时
+            $processedInBatch = 0;
+            
+            foreach ($photos as $photo) {
+                // 限制每次处理的照片数量
+                if ($processedInBatch >= $maxPhotosPerBatch) {
+                    break;
+                }
+                
+                $photoId = $photo['id'];
+                
+                // 检查照片是否已经进行过AI识别，除非force=true
+                if (!$force && $photo['has_content_tags'] == 1) {
+                    // 跳过已经识别过的照片，避免重复调用API
+                    $skippedCount++;
+                    continue;
+                }
+                
+                $filePath = __DIR__ . '/../' . substr($photo['url'], 1);
+                
+                if (file_exists($filePath)) {
+                    // 调用图像分类API
+                    $tagsResult = $baiduAIService->imageClassify($filePath);
+                    
+                    if (!empty($tagsResult)) {
+                        // 更新has_content_tags字段
+                        $stmt = $pdo->prepare("UPDATE photos SET has_content_tags = 1 WHERE id = ?");
+                        $stmt->execute([$photoId]);
+                        
+                        // 保存标签到数据库
+                        foreach ($tagsResult as $tagData) {
+                            $tagName = $tagData['keyword'];
+                            // 插入标签
+                            $stmt = $pdo->prepare("INSERT IGNORE INTO photo_tags (name) VALUES (?)");
+                            $stmt->execute([$tagName]);
+                            
+                            // 获取标签ID
+                            $stmt = $pdo->prepare("SELECT id FROM photo_tags WHERE name = ?");
+                            $stmt->execute([$tagName]);
+                            $tagId = $stmt->fetchColumn();
+                            
+                            // 关联照片和标签
+                            if ($tagId) {
+                                $stmt = $pdo->prepare("INSERT IGNORE INTO photo_tag_relations (photo_id, tag_id) VALUES (?, ?)");
+                                $stmt->execute([$photoId, $tagId]);
+                            }
+                        }
+                        
+                        $processedCount++;
+                        $processedInBatch++;
+                    }
+                }
+            }
+            
+            echo json_encode([
+                'status' => 'success',
+                'message' => "AI分类完成，共处理了 {$processedCount} 张照片，跳过了 {$skippedCount} 张已识别的照片"
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'AI分类失败: ' . $e->getMessage()
             ], JSON_UNESCAPED_UNICODE);
         }
         

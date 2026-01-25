@@ -24,6 +24,10 @@ Thumbs.db
 node_modules/
 vendor/
 
+# 配置文件
+config.php
+backend/src/config.php
+
 # 构建输出
 dist/
 build/

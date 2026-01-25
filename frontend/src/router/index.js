@@ -6,6 +6,7 @@ import Dashboard from '../views/Dashboard.vue'
 import Sharing from '../views/Sharing.vue'
 import Favorites from '../views/Favorites.vue'
 import Albums from '../views/Albums.vue'
+import PhotoTypes from '../views/PhotoTypes.vue'
 import Trash from '../views/Trash.vue'
 import Profile from '../views/Profile.vue'
 import SharedView from '../views/SharedView.vue'
@@ -82,6 +83,18 @@ const routes = [
       {
         path: '',
         component: Albums
+      }
+    ]
+  },
+  {
+    path: '/photo-types',
+    name: 'PhotoTypes',
+    component: MainLayout,
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        component: PhotoTypes
       }
     ]
   },

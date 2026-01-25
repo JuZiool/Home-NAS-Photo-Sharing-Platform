@@ -31,6 +31,10 @@
             <span class="nav-icon">📁</span>
             <span class="nav-text">相册</span>
           </router-link>
+          <router-link to="/photo-types" class="nav-item" active-class="active">
+            <span class="nav-icon">🎯</span>
+            <span class="nav-text">类型视图</span>
+          </router-link>
           <router-link to="/trash" class="nav-item" active-class="active">
             <span class="nav-icon">🗑️</span>
             <span class="nav-text">回收站</span>
@@ -175,21 +179,21 @@ onMounted(() => {
 }
 
 :root.light-mode .nav-item {
-  color: #666666;
+  color: #495057;
 }
 
 :root.light-mode .nav-item:hover {
   background-color: rgba(0, 0, 0, 0.05);
-  color: #000000;
+  color: #212529;
 }
 
 :root.light-mode .nav-item.active {
   background-color: rgba(102, 126, 234, 0.1);
-  color: #667eea;
+  color: #212529;
 }
 
 :root.light-mode .section-title {
-  color: #999999;
+  color: #6c757d;
 }
 
 :root.light-mode .top-bar {
